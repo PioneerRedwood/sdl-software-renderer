@@ -7,7 +7,7 @@
 
 #include "Blend.hpp"
 
-namespace shmup {
+namespace ssr {
 
 RGBAf Blend::convertToFloat(const RGBA& c) {
   // MSVC 사용 시 아래와 같이 구조체 초기화하는 기법은 C++20 이상부터 지원
@@ -79,4 +79,4 @@ RGBA Blend::multiply(const RGBA& src, const RGBA& dst) {
   return retValue;
 }
 
-}  // namespace shmup
+}  // namespace ssr

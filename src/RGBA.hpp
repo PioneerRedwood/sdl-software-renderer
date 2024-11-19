@@ -9,7 +9,7 @@
 
 #include <cstdint>
 
-namespace shmup {
+namespace ssr {
 
 struct RGBA {
   uint8_t r;
@@ -22,4 +22,4 @@ struct RGBAf {
   float r, g, b, a;
 };
 
-}  // namespace shmup
+}  // namespace ssr

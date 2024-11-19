@@ -11,7 +11,7 @@
 
 #include "SDLRenderer.hpp"
 
-namespace shmup {
+namespace ssr {
 
 class SDLProgram {
  public:
@@ -61,4 +61,4 @@ private:
   double m_delta = 0;
 };
 
-}  // namespace shmup
+}  // namespace ssr

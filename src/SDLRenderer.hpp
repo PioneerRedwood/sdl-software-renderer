@@ -11,7 +11,7 @@
 #include <SDL.h>
 #include "Blend.hpp"
 
-namespace shmup {
+namespace ssr {
 
 class SDLRenderer {
  public:
@@ -40,4 +40,4 @@ class SDLRenderer {
 
 };
 
-}  // namespace shmup
+}  // namespace ssr

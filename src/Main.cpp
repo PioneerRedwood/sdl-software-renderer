@@ -18,15 +18,24 @@ int main(int argc, char **argv)
 {
   std::srand((unsigned)time(nullptr));
 
-  shmup::SDLProgram *program = shmup::SDLProgram::instance();
+  ssr::SDLProgram *program = ssr::SDLProgram::instance();
 
   if (program->init(400, 0, 1024, 768) == false)
   {
     return 1;
   }
 
-  auto &renderer = program->renderer();
-  auto *nativeRenderer = program->nativeRenderer();
+  ssr::SDLRenderer &renderer = program->renderer();
+  SDL_Renderer *nativeRenderer = program->nativeRenderer();
+
+  // TODO: 프로그램에 필요한 리소스 생성
+
+  // 각 행렬 초기화
+  // 모델 행렬
+  // 뷰 행렬
+  // 프로젝션 행렬
+
+  // 메모리에 상주하는 프레임버퍼
 
   // Main loop
   program->updateTime();

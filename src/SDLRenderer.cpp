@@ -12,7 +12,7 @@
 
 #include "SDLProgram.hpp"
 
-namespace shmup {
+namespace ssr {
 
 SDLRenderer::SDLRenderer() {}
 
@@ -34,5 +34,5 @@ void SDLRenderer::present() { SDL_RenderPresent(m_renderer); }
 
 void SDLRenderer::flush() { SDL_RenderFlush(m_renderer); }
 
-}  // namespace shmup
+}  // namespace ssr
 

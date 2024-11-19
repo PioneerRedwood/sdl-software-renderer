@@ -9,7 +9,7 @@
 
 #include <iostream>
 
-namespace shmup {
+namespace ssr {
 
 SDLProgram* SDLProgram::s_instance = nullptr;
 
@@ -90,4 +90,4 @@ double SDLProgram::delta() const {
   return m_delta;
 }
 
-}  // namespace shmup
+}  // namespace ssr

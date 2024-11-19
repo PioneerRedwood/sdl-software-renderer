@@ -11,7 +11,7 @@
 
 #include "RGBA.hpp"
 
-namespace shmup {
+namespace ssr {
 
 struct Blend {
 public:
@@ -43,4 +43,4 @@ static RGBA multiply(const RGBA& src, const RGBA& dst);
 
 }; // struct Blend
 
-}  // namespace shmup
+}  // namespace ssr
