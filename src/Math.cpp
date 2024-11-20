@@ -91,6 +91,8 @@ Vector3 Vector3::normalize() const {
   return (*this) / mag;
 }
 
+namespace math {
+
 Vector3 subtract(const Vector3& v1, const Vector3& v2) {
   return v1 - v2;
 }
@@ -105,6 +107,8 @@ Vector3 crossProduct(const Vector3& v1, const Vector3& v2) {
     v1.z * v2.z - v1.x * v2.z,
     v1.x * v2.y - v1.y * v2.x
   };
+}
+
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -213,38 +217,99 @@ bool Matrix4x4::operator==(const Matrix4x4& other) const {
   );
 }
 
-// TODO: 재검토 바람
-// 행렬 곱
+/*
+  행렬 곱
+  +-----------------+   +-----------------+   +-----------------+  
+  | m11 m12 m13 m14 |   | n11 n12 n13 n14 |   | r11 r12 r13 r14 |  
+  | m21 m22 m23 m24 | + | n21 n22 n23 n24 | = | r21 r22 r23 r24 |  
+  | m31 m32 m33 m34 |   | n31 n32 n33 n34 |   | r31 r32 r33 r34 |  
+  | m41 m42 m43 m44 |   | n41 n42 n43 n44 |   | r41 r42 r43 r44 |  
+  +-----------------+   +-----------------+   +-----------------+  
+
+  r11 = m11 * n11 + m12 * n21 + m13 * n31 + m14 * n41
+  r12 = m11 * n12 + m12 * n22 + m13 * n32 + m14 * n42
+  r13 = m11 * n13 + m12 * n23 + m13 * n33 + m14 * n43
+  r14 = m11 * n14 + m12 * n24 + m13 * n34 + m14 * n44
+  ...
+*/
 Matrix4x4 Matrix4x4::operator*(const Matrix4x4& other) const {
   return {
-      this->m11 * other.m11, this->m12 * other.m12, this->m13 * other.m13, this->m14 * other.m14,
-      this->m21 * other.m21, this->m22 * other.m22, this->m23 * other.m23, this->m24 * other.m24,
-      this->m31 * other.m31, this->m32 * other.m32, this->m33 * other.m33, this->m34 * other.m34,
-      this->m41 * other.m41, this->m42 * other.m42, this->m43 * other.m43, this->m44 * other.m44
+    this->m11 * other.m11 + this->m12 * other.m21 + this->m13 * other.m31 + this->m14 * other.m41,
+    this->m11 * other.m12 + this->m12 * other.m22 + this->m13 * other.m32 + this->m14 * other.m42,
+    this->m11 * other.m13 + this->m12 * other.m23 + this->m13 * other.m33 + this->m14 * other.m43,
+    this->m11 * other.m14 + this->m12 * other.m24 + this->m13 * other.m34 + this->m14 * other.m44,
+
+    this->m21 * other.m11 + this->m22 * other.m21 + this->m23 * other.m31 + this->m24 * other.m41,
+    this->m21 * other.m12 + this->m22 * other.m22 + this->m23 * other.m32 + this->m24 * other.m42,
+    this->m21 * other.m13 + this->m22 * other.m23 + this->m23 * other.m33 + this->m24 * other.m43,
+    this->m21 * other.m14 + this->m22 * other.m24 + this->m23 * other.m34 + this->m24 * other.m44,
+
+    this->m31 * other.m11 + this->m32 * other.m21 + this->m33 * other.m31 + this->m34 * other.m41,
+    this->m31 * other.m12 + this->m32 * other.m22 + this->m33 * other.m32 + this->m34 * other.m42,
+    this->m31 * other.m13 + this->m32 * other.m23 + this->m33 * other.m33 + this->m34 * other.m43,
+    this->m31 * other.m14 + this->m32 * other.m24 + this->m33 * other.m34 + this->m34 * other.m44,
+
+    this->m41 * other.m11 + this->m42 * other.m21 + this->m43 * other.m31 + this->m44 * other.m41,
+    this->m41 * other.m12 + this->m42 * other.m22 + this->m43 * other.m32 + this->m44 * other.m42,
+    this->m41 * other.m13 + this->m42 * other.m23 + this->m43 * other.m33 + this->m44 * other.m43,
+    this->m41 * other.m14 + this->m42 * other.m24 + this->m43 * other.m34 + this->m44 * other.m44
   };
 }
 
+/*
+  이동 
+  +-----------------+
+  | x.x y.x z.x w.x |
+  | x.y y.y z.y w.y |
+  | x.z y.z z.z w.z |
+  | x.w y.w z.w w.w |
+  +-----------------+
+  m11(x.x) + x, m22(y.y) + y, m33(z.z) + z
+*/
 void Matrix4x4::translation(float x, float y, float z) {
   this->m11 + x;
   this->m22 + y;
   this->m33 + z;
 }
 
-// TODO: 재검토 바람
+/*
+  변환
+  +-----------------+   +---+
+  | m11 m12 m13 m14 |   | x |
+  | m21 m22 m23 m24 | X | y |
+  | m31 m32 m33 m34 |   | z |
+  | m41 m42 m43 m44 |   | 1 |
+  +-----------------+   +---+
+  = (m11 * x + m21 * y + m31 * z + m41 * 1, ... )
+  = (m12 * x + m22 * y + m32 * z + m42 * 1, ... )
+  = (m13 * x + m23 * y + m33 * z + m43 * 1, ... )
+*/
 Vector3 Matrix4x4::transform(const Vector3& v) {
   return {
-    this->m11 * v.x + this->m12 * v.y + this->m13 * v.z + this->m14,
-    this->m21 * v.x + this->m22 * v.y + this->m23 * v.z + this->m24,
-    this->m31 * v.x + this->m32 * v.y + this->m33 * v.z + this->m34
+    this->m11 * v.x + this->m12 * v.y + this->m13 * v.z + this->m41,
+    this->m21 * v.x + this->m22 * v.y + this->m23 * v.z + this->m42,
+    this->m31 * v.x + this->m32 * v.y + this->m33 * v.z + this->m43
   };
 }
 
-// TODO: 재검토 바람
+/*
+  변환
+  +-----------------+   +---+
+  | m11 m12 m13 m14 |   | x |
+  | m21 m22 m23 m24 | X | y | 
+  | m31 m32 m33 m34 |   | z |
+  | m41 m42 m43 m44 |   | 1 |
+  +-----------------+   +---+
+  = (m11 * x + m21 * y + m31 * z + m41 * 1, ... )
+  = (m12 * x + m22 * y + m32 * z + m42 * 1, ... )
+  = (m13 * x + m23 * y + m33 * z + m43 * 1, ... )
+  = (m14 * x + m24 * y + m34 * z + m44 * 1, ... )
+*/
 Vector4 Matrix4x4::transform4(const Vector3& v) {
   return {
-    this->m11 * v.x + this->m12 * v.y + this->m13 * v.z + this->m14,
-    this->m21 * v.x + this->m22 * v.y + this->m23 * v.z + this->m24,
-    this->m31 * v.x + this->m32 * v.y + this->m33 * v.z + this->m34,
+    this->m11 * v.x + this->m12 * v.y + this->m13 * v.z + this->m41,
+    this->m21 * v.x + this->m22 * v.y + this->m23 * v.z + this->m42,
+    this->m31 * v.x + this->m32 * v.y + this->m33 * v.z + this->m43,
     this->m41 * v.x + this->m42 * v.y + this->m43 * v.z + this->m44
   };
 }

@@ -13,6 +13,12 @@
 
 #include "SDLProgram.hpp"
 #include "Math.hpp"
+#include "Camera.hpp"
+
+// Global variables
+ssr::Matrix4x4 g_modelMat = ssr::Matrix4x4::identity;
+ssr::Matrix4x4 g_projectionMat = ssr::Matrix4x4::identity;
+ssr::Matrix4x4 g_viewportMat = ssr::Matrix4x4::identity;
 
 int main(int argc, char **argv)
 {
@@ -29,13 +35,16 @@ int main(int argc, char **argv)
   SDL_Renderer *nativeRenderer = program->nativeRenderer();
 
   // TODO: 프로그램에 필요한 리소스 생성
+  ssr::Camera camera;
+  camera.m_aspect = (float)program->width() / program->height();
+  camera.m_fov = 45.0f;
 
   // 각 행렬 초기화
   // 모델 행렬
   // 뷰 행렬
   // 프로젝션 행렬
 
-  // 메모리에 상주하는 프레임버퍼
+  // 메모리에 상주하는 프레임버퍼 생성
 
   // Main loop
   program->updateTime();
@@ -83,6 +92,15 @@ int main(int argc, char **argv)
       }
       }
     }
+    
+    // Update rendering objects
+
+    // mat = Camera(Mat) * Model(Mat)
+
+    // mat = Proj(Mat) * mat (Clipping applied)
+
+    // Apply NDC/Viewport transformation
+
     SDL_SetRenderDrawColor(renderer.native(), 12, 10, 40, 255);
     renderer.clear();
     renderer.present();

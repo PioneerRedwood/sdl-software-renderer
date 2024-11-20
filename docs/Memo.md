@@ -48,7 +48,48 @@
 ## OpenGL Transformation
 3차원 공간 객체는 다음의 과정을 거쳐 2차원 공간으로 그려진다. 
 
-// TODO: 이어서 추가 바람
+```
+정점 데이터 ==(월드 혹은 로컬 좌표계)>> 모델(위치, 방향, 크기) => 뷰 행렬 ==(카메라 좌표계)>> 프로젝션 행렬 ==(클립 좌표계)>> w에 의해 나누기 ==(NDC 정규화된 공간 좌표계)>> 뷰포트 변환 (화면 좌표계)
+```
+
+### 월드 좌표계; Object Coordinates / 모델 좌표계
+glTranslatef, glRotatef, glScalef
+GL에서는 모델 변환과 뷰 변환을 합쳐서 모델 뷰 변환이라 한다. 
+대상의 로컬 좌표계로 어떠한 변환이 적용되기 이전의 초기 위치와 방향이 담겨있다. 
+``` 
+모델 좌표계 행렬은 아래와 같이 구할 수 있다. 
+
+Mat(model) = Mat(위치/방향, 크기, 이동, 회전 등 기하) X Vec4(객체)
++----------------+   +---+
+| sx   0   0  tx |   | x |
+|  0  sy   0  ty | X | y |
+|  0   0  sy  tz |   | z |
+|  0   0   0  1  |   | 1 | => Affine Transformation
++----------------+   +---+
+```
+
+### 카메라 좌표계; Eye Coordinates
+gluLookAt
+[OpenGL Utility LookAt 함수 참고](https://arienbv.org/blog/2017/07/30/breakdown-of-the-lookAt-function-in-OpenGL/)
+모델뷰 행렬이 월드 좌표계에 곱해진 값으로 로컬 좌표계에서 카메라 공간의 좌표계로 변환된 것이다. 
+```
+뷰 좌표계 행렬은 아래와 같이 구할 수 있다. // TODO: 뷰 행렬 추가 바람
+Mat(eye) = Mat(view) X Mat(model)
++----------------+
+| sx   0   0  tx |
+|  0  sy   0  ty |
+|  0   0  sy  tz |
+|  0   0   0  1  |
++----------------+
+```
+
+### 프로젝션 행렬 및 클립 좌표계
+glFrustum, glOrtho
+
+### Normalized Device Coordinates; 정규화된 장치 좌표계 및 최종 공간
+
+### 뷰포트 변환; Viewport 
+glViewport, glDepthRange
 
 ## Transformations in OpenGL
 - OpenGL에서의 좌표 공간과 그 개념을 ppt로 설명 (영국 본머스 대학의 교재로 추정)

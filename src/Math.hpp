@@ -56,6 +56,8 @@ struct Vector3 {
   Vector3 normalize() const;
 };
 
+namespace math {
+
 /// @brief 두 벡터의 뺄셈을 반환
 /// @param v1 첫번째 벡터
 /// @param v2 두번째 벡터
@@ -79,6 +81,8 @@ float dotProduct(const Vector3& v1, const Vector3& v2);
 /// @return 두 벡터의 외적
 Vector3 crossProduct(const Vector3& v1, const Vector3& v2);
 
+}
+
 struct Vector4 {
   float x;
   float y;
@@ -89,6 +93,16 @@ struct Vector4 {
   Vector4(float, float, float, float);
 };
 
+/*
+   x   y   z   w -> axis
+   v   v   v   v
++-----------------+ +-----------------+
+| m11 m12 m13 m14 | | x.x y.x z.x w.x |
+| m21 m22 m23 m24 | | x.y y.y z.y w.y |
+| m31 m32 m33 m34 | | x.z y.z z.z w.z |
+| m41 m42 m43 m44 | | x.w y.w z.w w.w |
++-----------------+ +-----------------+
+*/
 struct Matrix4x4 {
   float m11, m12, m13, m14;
   float m21, m22, m23, m24;
