@@ -91,6 +91,7 @@ struct Vector4 {
 
   Vector4();
   Vector4(float, float, float, float);
+  void perspectiveDivide();
 };
 
 /*
@@ -140,6 +141,7 @@ struct Matrix4x4 {
   
   // multiply
   Matrix4x4 operator*(const Matrix4x4& other) const;
+  Vector4 operator*(const Vector4& other) const;
 
   static Matrix4x4 identity;
 
@@ -157,4 +159,35 @@ struct Matrix4x4 {
   Vector4 transform4(const Vector3& v);
 };
 
-}
+namespace math {
+
+/**
+ * @brief 현재 카메라가 바라보고 있는 방향의 벡터를 반환
+ * https://arienbv.org/blog/2017/07/30/breakdown-of-the-lookAt-function-in-OpenGL/
+ * @return Matrix4x4 
+ */
+void lookAt(Matrix4x4& out, const Vector3& eye, const Vector3& at, const Vector3& up);
+
+/**
+ * @brief 원근 투영 프러스텀 매트릭스 반환
+ * https://www.songho.ca/opengl/gl_projectionmatrix.html
+ * @param camera 
+ */
+void perspectiveProject(Matrix4x4& out, float fovY, float aspect, float near, float far);
+
+// https://www.songho.ca/opengl/gl_transform.html
+// https://www.songho.ca/opengl/gl_viewport.html
+// near, far는 기본값 각각 0, 1 사용
+void viewport(Matrix4x4& out, float x, float y, float w, float h);
+
+/**
+ * @brief 4차원 동차 좌표에서 3차원 좌표로 변환
+ * 
+ * @param out 변환 전
+ * @param in 변환 후
+ */
+void perspectiveDivide(Vector4& out, const Vector4& in);
+
+} // namespace math
+
+} // namespace ssr

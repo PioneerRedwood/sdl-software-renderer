@@ -46,19 +46,17 @@
 - 마지막으로 블랜딩, 디더링, 논리 작업(logical operations)을 수행하고 비트마스크에 의한 마스킹을 수행하여 실제 픽셀 데이터가 프레임버퍼에 저장되도록 함
 
 ## OpenGL Transformation
-3차원 공간 객체는 다음의 과정을 거쳐 2차원 공간으로 그려진다. 
+- 3차원 공간 객체는 다음의 과정을 거쳐 2차원 공간으로 그려짐
 
 ```
 정점 데이터 ==(월드 혹은 로컬 좌표계)>> 모델(위치, 방향, 크기) => 뷰 행렬 ==(카메라 좌표계)>> 프로젝션 행렬 ==(클립 좌표계)>> w에 의해 나누기 ==(NDC 정규화된 공간 좌표계)>> 뷰포트 변환 (화면 좌표계)
 ```
 
 ### 월드 좌표계; Object Coordinates / 모델 좌표계
-glTranslatef, glRotatef, glScalef
-GL에서는 모델 변환과 뷰 변환을 합쳐서 모델 뷰 변환이라 한다. 
-대상의 로컬 좌표계로 어떠한 변환이 적용되기 이전의 초기 위치와 방향이 담겨있다. 
+- glTranslatef, glRotatef, glScalef
+- GL에서는 모델 변환과 뷰 변환을 합쳐서 모델 뷰 변환이라 함
+- 대상의 로컬 좌표계로 어떠한 변환이 적용되기 이전의 초기 위치와 방향이 담겨있음  
 ``` 
-모델 좌표계 행렬은 아래와 같이 구할 수 있다. 
-
 Mat(model) = Mat(위치/방향, 크기, 이동, 회전 등 기하) X Vec4(객체)
 +----------------+   +---+
 | sx   0   0  tx |   | x |
@@ -69,11 +67,11 @@ Mat(model) = Mat(위치/방향, 크기, 이동, 회전 등 기하) X Vec4(객체
 ```
 
 ### 카메라 좌표계; Eye Coordinates
-gluLookAt
-[OpenGL Utility LookAt 함수 참고](https://arienbv.org/blog/2017/07/30/breakdown-of-the-lookAt-function-in-OpenGL/)
-모델뷰 행렬이 월드 좌표계에 곱해진 값으로 로컬 좌표계에서 카메라 공간의 좌표계로 변환된 것이다. 
+- gluLookAt
+- [OpenGL Utility LookAt 함수 참고](https://arienbv.org/blog/2017/07/30/breakdown-of-the-lookAt-function-in-OpenGL/)
+- 모델뷰 행렬이 월드 좌표계에 곱해진 값으로 로컬 좌표계에서 카메라 공간의 좌표계로 변환된 것 
 ```
-뷰 좌표계 행렬은 아래와 같이 구할 수 있다. // TODO: 뷰 행렬 추가 바람
+뷰 좌표계 행렬은 아래와 같이 구할 수 있다.
 Mat(eye) = Mat(view) X Mat(model)
 +----------------+
 | sx   0   0  tx |
@@ -84,15 +82,32 @@ Mat(eye) = Mat(view) X Mat(model)
 ```
 
 ### 프로젝션 행렬 및 클립 좌표계
-glFrustum, glOrtho
+- 카메라 좌표계에서 프로젝션 행렬이 적용되면 클립 좌표계로 변경됨 
+- 이 프로젝션 행렬은 프러스텀 frustum으로 보이는 영역을 정의함
+- 정점 데이터가 어떤 방식으로 투영될 지 결정; 원근 혹은 직교
+- 클립 좌표계로 변경하는 이유는 3차원 좌표가 4차원 좌표 (w)로 비교하기 위해서임
 
-### Normalized Device Coordinates; 정규화된 장치 좌표계 및 최종 공간
+### Normalized Device Coordinates; 정규화된 장치 좌표계
+- 각 X, Y, Z축을 w 값으로 나눠 원근 분할을 수행
+- 이는 화면(스크린)에 가까운 좌표 변환
+- 아직 픽셀로 이동하거나 크기가 적용되지 않은 상태
+- 3개의 축은 -1부터 1까지의 크기로 정규화됨
 
 ### 뷰포트 변환; Viewport 
-glViewport, glDepthRange
+- glViewport, glDepthRange
+- 정규화된 좌표계가 뷰포트 변환에 의해 정규화하는 과정
+- OpenGL 파이프라인의 래스터라이제이션 과정으로 최종적으로 옮기는 과정
+- 뷰포트 설정(x, y)과 깊이 버퍼(z)를 통해 이후에 그릴 사각 영역을 결정
+- TODO 이 챕터에서 설명한 원리를 코드로 적용해야 함
 
-## Transformations in OpenGL
-- OpenGL에서의 좌표 공간과 그 개념을 ppt로 설명 (영국 본머스 대학의 교재로 추정)
+## OpenGL Projection Matrix
+- 카메라 좌표계에서 클립 좌표계로 변환할 때에는 프러스텀을 이용하여 클립 좌표계에 매핑을 시켜야 함
+- X, Y, Z축 매핑되는 right left top bottom near far 변수를 통해 카메라 좌표계와 클립 좌표계의 관계를 이해해야 함
+- 매핑을 거치면 Z축을 기준으로 동차 좌표계가 반환되고 후에 있을 NDC 계산에서 이들은 3차원 좌표로 변하게 됨
+- 카메라 좌표계는 오른손 좌표계인 반면 클립 좌표계는 왼손 좌표계임
+- 동차 좌표계로 이루어진 클립 좌표계를 다시 3차원 좌표계로 변환
+- OpenGL에서는 반드시 역행렬을 적용해야 함을 잊지 말 것
+- TODO 이 챕터에서 설명한 원리를 코드로 적용해야 함
 
 ## World, View and Projection Matrix Unveiled
 - DirectX 기준 설명
@@ -104,8 +119,6 @@ glViewport, glDepthRange
     - 만약 원근법이 필요하지 않다면 이 변환까지 적용된 행렬로 화면에 표시 가능
 - 프로젝션 매트릭스 (Projection Matrix; 투영 행렬)
     - 뷰로부터의 near, far 거리, 화면의 해상도와 카메라의 보는 각도 기반 행렬
-
-#### 정리
 - DirectX 기준: matrix4x4 World_View_Projection_Matrix = `World x View x Projection`
 - OpenGL 기준: matrix4x4 Projection_View_World_Matrix = `Projection x View x World`
 
@@ -120,3 +133,4 @@ glViewport, glDepthRange
 - [Transformations in OpenGL (Bournemouth Univ)](https://nccastaff.bournemouth.ac.uk/jmacey/Lectures/OpenGL/transforms/?print-pdf#/) 
 - [Cartesian coordinate system (English Wikipedia)](https://en.wikipedia.org/wiki/Cartesian_coordinate_system)
 - [Euler Angles](https://mathworld.wolfram.com/EulerAngles.html)
+- [OpenGL Projection Matrix](https://www.songho.ca/opengl/gl_projectionmatrix.html)

@@ -119,6 +119,13 @@ Vector4::Vector4()
 Vector4::Vector4(float x, float y, float z, float w)
 : x(x), y(y), z(z), w(w) {}
 
+void Vector4::perspectiveDivide() {
+  const float rhw = 1 / w;
+  this->x = x * rhw;
+  this->y = y * rhw;
+  this->z = z * rhw;
+}
+
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 Matrix4x4 Matrix4x4::identity = {
@@ -187,6 +194,15 @@ Matrix4x4 Matrix4x4::operator*(float scalar) const {
       this->m21 * scalar, this->m22 * scalar, this->m23 * scalar, this->m24 * scalar,
       this->m31 * scalar, this->m32 * scalar, this->m33 * scalar, this->m34 * scalar,
       this->m41 * scalar, this->m42 * scalar, this->m43 * scalar, this->m44 * scalar
+  };
+}
+
+Vector4 Matrix4x4::operator*(const Vector4& other) const {
+  return {
+    this->m11 * other.x + this->m12 * other.y + this->m13 * other.z + this->m14 * other.w,
+    this->m21 * other.x + this->m22 * other.y + this->m23 * other.z + this->m24 * other.w,
+    this->m31 * other.x + this->m32 * other.y + this->m33 * other.z + this->m34 * other.w,
+    this->m41 * other.x + this->m42 * other.y + this->m43 * other.z + this->m44 * other.w
   };
 }
 
@@ -312,6 +328,94 @@ Vector4 Matrix4x4::transform4(const Vector3& v) {
     this->m31 * v.x + this->m32 * v.y + this->m33 * v.z + this->m43,
     this->m41 * v.x + this->m42 * v.y + this->m43 * v.z + this->m44
   };
+}
+
+namespace math {
+
+void lookAt(Matrix4x4& model, const Vector3& eye, const Vector3& at, const Vector3& up) {
+  // 카메라가 바라보고 있는 방향을 가져옴
+  // 하지만 이는 실제 바라보는 방향과 반대되는 방향임
+  // 왼손 좌표계를 만들어놓고 나중에 오른손 좌표계로 하기 위해서는
+  // z축을 기준으로 뒤집으면 됨 (이때는 왼손 좌표계)
+  Vector3 zaxis = (at - eye).normalize();
+
+  // 두 개의 다른 벡터 축 계산
+  // 다음 두 벡터를 계산하기 위해서는 외적이 효과적
+  
+  //  1. 카메라가 바라보고 있는 방향과 카메라의 위 방향 
+  // 벡터를 외적하여 x축을 구함. 이때 내적하고 난 뒤
+  // 벡터 정규화를 거쳐야 함 up 벡터는 유닛 벡터가 아니기
+  // 때문.
+  Vector3 xaxis = math::crossProduct(zaxis, up).normalize();
+  
+  //  2. 구한 x축과 z축을 외적하여 y축 구하기
+  Vector3 yaxis = math::crossProduct(xaxis, zaxis);
+
+  /*
+  +-----------------+
+  | m11 m12 m13 m14 |
+  | m21 m22 m23 m24 |
+  | m31 m32 m33 m34 |
+  | m41 m42 m43 m44 |
+  +-----------------+
+  */
+  // 위 세 개의 축을 구한 뒤 주어진 모델 좌표계를
+  // 카메라 좌표계로 이동하려면 어파인 변환을 거쳐야 함
+  // 어파인 변환은 이동과 회전으로 나뉘며 이를 적용할 때
+  // 이들을 분리하여 변환 행렬의 역행렬을 구하기 쉽도록 함
+  model.m11 = xaxis.x, model.m21 = xaxis.y, model.m31 = xaxis.z, model.m41 = -math::dotProduct(xaxis, eye);
+  model.m12 = xaxis.x, model.m22 = xaxis.y, model.m32 = xaxis.z, model.m42 = -math::dotProduct(yaxis, eye);
+  model.m13 = xaxis.x, model.m23 = xaxis.y, model.m33 = xaxis.z, model.m43 = -math::dotProduct(zaxis, eye);
+  model.m41 = 0.0f, model.m21 = 0.0f, model.m31 = 0.0f, model.m41 = 1.0f;
+}
+
+void perspectiveProject(Matrix4x4& out, float fovY, float aspect, float near, float far) {
+  // 원근 투영 
+  // 카메라 -> 클립 영역
+  // 가로 세로 비율이 대칭인 것을 전제로 함
+
+  const float DEG2RAD = acos(-1.0f) / 180;
+
+  // fovY 절반 탄젠트 값
+  float tangent = tan(fovY / 2 * DEG2RAD);
+  // near 평면의 절반 높이 및 너비
+  float top = near * tangent, right = top * aspect;
+  
+  /*
+  +-----------------+ +-----------------+
+  | m11  0   0   0  | | n/r  0   0   0  |
+  |  0  m22  0   0  | |  0  n/t  0   0  |
+  |  0   0  m33 m34 | |  0   0  m33 m34 |
+  |  0   0  m43 m44 | |  0   0  m43  0  |
+  +-----------------+ +-----------------+
+  m33 = -(far + near) / (far - near)
+  m34 = -(2 * far * near) / (far - near)
+  */
+  out.m11 = near / right;
+  out.m22 = near / top;
+  out.m33 = -(far + near) / (far - near);
+  out.m34 = -(2 * far * near) / (far - near);
+  out.m43 = -1.0f;
+  out.m44 = 0.0f;
+}
+
+void viewport(Matrix4x4& out, float x, float y, float w, float h) {
+  /*
+  +-----------------+ +-----------------+
+  | m11  0   0  m14 | | w/2  0   0   0  |
+  |  0  m22  0  m24 | |  0  h/2  0   0  |
+  |  0   0  m33 m34 | |  0   0  m33 m34 |
+  |  0   0   0   1  | |  0   0  m43  0  |
+  +-----------------+ +-----------------+
+  */
+  out.m11 = w / 2;
+  out.m14 = x + w / 2;
+  out.m22 = h / 2;
+  out.m24 = y + h / 2;
+  out.m33 = 1 / 2;
+  out.m34 = 1 / 2;
+}
+
 }
 
 }  // namespace ssr
