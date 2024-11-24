@@ -126,15 +126,6 @@ void Vector4::perspectiveDivide() {
   this->z = z * rhw;
 }
 
-namespace math {
-
-Vector3 perspectiveDivide(const Vector4 other) {
-  const float rhw = 1 / other.w;
-  return { other.x * rhw, other.y * rhw, other.z * rhw };
-}
-
-}
-
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 Matrix4x4 Matrix4x4::identity = {
@@ -340,7 +331,7 @@ Vector4 Matrix4x4::transform4(const Vector3& v) {
 
 void Matrix4x4::rotate(float x, float y, float z) {
   const float DEG2RAD = acos(-1.0f) / 180;
-  
+
 }
 
 void Matrix4x4::print() const {
@@ -401,7 +392,7 @@ void lookAt(Matrix4x4& model, const Vector3& eye, const Vector3& at, const Vecto
   model.m41 = 0.0f;      model.m42 = 0.0f;        model.m43 = 0.0f;       model.m44 = 1.0f;
 }
 
-void perspectiveProject(Matrix4x4& out, float fovX, float aspect, float near, float far) {
+void perspectiveProject(Matrix4x4& out, float fovY, float aspect, float near, float far) {
   // 원근 투영 
   // 카메라 -> 클립 영역
   // 가로 세로 비율이 대칭인 것을 전제로 함
@@ -409,7 +400,7 @@ void perspectiveProject(Matrix4x4& out, float fovX, float aspect, float near, fl
   const float DEG2RAD = acos(-1.0f) / 180;
 
   // fovY 절반 탄젠트 값
-  float tangent = tan(fovX/2 * DEG2RAD);
+  float tangent = tan(fovY/2 * DEG2RAD);
 
   // near 평면의 절반 높이 및 너비
   float top = near * tangent, right = top * aspect;

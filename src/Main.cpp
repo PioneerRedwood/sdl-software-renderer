@@ -83,20 +83,14 @@ void transformToScreen(ssr::Matrix4x4& mat, ssr::Vector4& point) {
   point = mat * point;
 
   // 프로젝션 분할(projectionDevide) 클립좌표계 -> NDC로 변환
-  point.x /= point.w;
-  point.y /= point.w;
-  point.z /= point.w;
+  point.perspectiveDivide();
 }
 
 void drawPoint(int x, int y, int color) {
   if(x > SCREEN_WIDTH || x < 0) return;
   if(y > SCREEN_HEIGHT || y < 0) return;
-#if USE_TEXTURE
+
   g_frameBuffer[x + y * SCREEN_WIDTH] = color;
-#else
-  SDL_SetRenderDrawColor(g_program->nativeRenderer(), 255, 255, 255, 255);
-  SDL_RenderDrawPoint(g_program->nativeRenderer(), x, y);
-#endif
 }
 
 ssr::Vector3 getNewPos() {
@@ -117,7 +111,8 @@ void renderStar() {
     transformToScreen(mat, pos);
 
     // draw point
-    drawPoint(pos.x, pos.y, 255);
+    int color = 0xFFFFFFFF;
+    drawPoint(pos.x, pos.y, color);
 
     // rest star position
     star.z -= 0.04f;
@@ -137,6 +132,8 @@ int main(int argc, char **argv)
   }
 
   ssr::SDLRenderer &renderer = g_program->renderer();
+//  SDL_RenderSetLogicalSize(renderer.native(), SCREEN_WIDTH, SCREEN_HEIGHT);
+//  SDL_RenderSetIntegerScale(renderer.native(), SDL_TRUE);
 
   // 메모리에 상주하는 프레임버퍼 생성
   g_frameBuffer = new unsigned int[g_program->width() * g_program->height() * 4];
@@ -149,7 +146,7 @@ int main(int argc, char **argv)
   
   // 카메라 설정
   g_camera.m_aspect = (float)g_program->width() / g_program->height();
-  g_camera.m_fov = 120.0f;
+  g_camera.m_fov = 45.0f;
 
   // 매트릭스 초기화
   initMatrices();
@@ -207,20 +204,11 @@ int main(int argc, char **argv)
     }
     
     // Update rendering objects
-#if USE_TEXTURE
+    memset((char*)g_frameBuffer, 0, sizeof(int) * SCREEN_WIDTH * SCREEN_HEIGHT);
     renderStar();
-
-    SDL_SetRenderDrawColor(renderer.native(), 12, 10, 40, 255);
-    renderer.clear();
 
     SDL_UpdateTexture(g_screenTexture, nullptr, g_frameBuffer, SCREEN_WIDTH * 4);
     SDL_RenderCopy(renderer.native(), g_screenTexture, nullptr, nullptr);
-#else
-    SDL_SetRenderDrawColor(renderer.native(), 12, 10, 40, 255);
-    renderer.clear();
-    
-    renderStar();
-#endif
     renderer.present();
 
     SDL_Delay(1); // Almost no delayed
