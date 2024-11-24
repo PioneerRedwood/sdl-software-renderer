@@ -146,7 +146,7 @@ struct Matrix4x4 {
   static Matrix4x4 identity;
 
   /// @brief 주어진 좌표로 이동하도록 하는 행렬 수정
-  void translation(float x, float y, float z);
+  void translate(float x, float y, float z);
   
   /// @brief 주어진 좌표로 변환한 벡터를 구함
   /// @param v 3차원 좌표
@@ -157,6 +157,11 @@ struct Matrix4x4 {
   /// @param v 4차원 좌표
   /// @return 4차원 벡터
   Vector4 transform4(const Vector3& v);
+
+  /// @brief 주어진 각도로 행렬 회전
+  void rotate(float x, float y, float z);
+
+  void print() const;
 };
 
 namespace math {
@@ -179,14 +184,6 @@ void perspectiveProject(Matrix4x4& out, float fovY, float aspect, float near, fl
 // https://www.songho.ca/opengl/gl_viewport.html
 // near, far는 기본값 각각 0, 1 사용
 void viewport(Matrix4x4& out, float x, float y, float w, float h);
-
-/**
- * @brief 4차원 동차 좌표에서 3차원 좌표로 변환
- * 
- * @param out 변환 전
- * @param in 변환 후
- */
-void perspectiveDivide(Vector4& out, const Vector4& in);
 
 } // namespace math
 

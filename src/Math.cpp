@@ -86,8 +86,8 @@ bool Vector3::operator==(const Vector3& other) const {
 }
 
 Vector3 Vector3::normalize() const {
-  const float mag = std::sqrtf(this->x * this->x +
-                               this->y * this->y + this->z * this->z);
+  const float mag = (float)std::sqrt(this->x * this->x + this->y * this->y +
+                                     this->z * this->z);
   return (*this) / mag;
 }
 
@@ -104,8 +104,8 @@ float dotProduct(const Vector3& v1, const Vector3& v2) {
 Vector3 crossProduct(const Vector3& v1, const Vector3& v2) {
   return {
     v1.y * v2.z - v1.z * v2.y,
-    v1.z * v2.z - v1.x * v2.z,
-    v1.x * v2.y - v1.y * v2.x
+    v1.z * v2.x - v1.x * v2.z,
+    v1.x * v2.y - v1.y * v2.z
   };
 }
 
@@ -124,6 +124,15 @@ void Vector4::perspectiveDivide() {
   this->x = x * rhw;
   this->y = y * rhw;
   this->z = z * rhw;
+}
+
+namespace math {
+
+Vector3 perspectiveDivide(const Vector4 other) {
+  const float rhw = 1 / other.w;
+  return { other.x * rhw, other.y * rhw, other.z * rhw };
+}
+
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -237,34 +246,33 @@ bool Matrix4x4::operator==(const Matrix4x4& other) const {
   행렬 곱
   +-----------------+   +-----------------+   +-----------------+  
   | m11 m12 m13 m14 |   | n11 n12 n13 n14 |   | r11 r12 r13 r14 |  
-  | m21 m22 m23 m24 | + | n21 n22 n23 n24 | = | r21 r22 r23 r24 |  
+  | m21 m22 m23 m24 | X | n21 n22 n23 n24 | = | r21 r22 r23 r24 |  
   | m31 m32 m33 m34 |   | n31 n32 n33 n34 |   | r31 r32 r33 r34 |  
   | m41 m42 m43 m44 |   | n41 n42 n43 n44 |   | r41 r42 r43 r44 |  
   +-----------------+   +-----------------+   +-----------------+  
-
-  r11 = m11 * n11 + m12 * n21 + m13 * n31 + m14 * n41
-  r12 = m11 * n12 + m12 * n22 + m13 * n32 + m14 * n42
-  r13 = m11 * n13 + m12 * n23 + m13 * n33 + m14 * n43
-  r14 = m11 * n14 + m12 * n24 + m13 * n34 + m14 * n44
   ...
 */
 Matrix4x4 Matrix4x4::operator*(const Matrix4x4& other) const {
   return {
+    // 첫 번째 행
     this->m11 * other.m11 + this->m12 * other.m21 + this->m13 * other.m31 + this->m14 * other.m41,
     this->m11 * other.m12 + this->m12 * other.m22 + this->m13 * other.m32 + this->m14 * other.m42,
     this->m11 * other.m13 + this->m12 * other.m23 + this->m13 * other.m33 + this->m14 * other.m43,
     this->m11 * other.m14 + this->m12 * other.m24 + this->m13 * other.m34 + this->m14 * other.m44,
 
+    // 두 번째 행
     this->m21 * other.m11 + this->m22 * other.m21 + this->m23 * other.m31 + this->m24 * other.m41,
     this->m21 * other.m12 + this->m22 * other.m22 + this->m23 * other.m32 + this->m24 * other.m42,
     this->m21 * other.m13 + this->m22 * other.m23 + this->m23 * other.m33 + this->m24 * other.m43,
     this->m21 * other.m14 + this->m22 * other.m24 + this->m23 * other.m34 + this->m24 * other.m44,
 
+    // 세 번째 행
     this->m31 * other.m11 + this->m32 * other.m21 + this->m33 * other.m31 + this->m34 * other.m41,
     this->m31 * other.m12 + this->m32 * other.m22 + this->m33 * other.m32 + this->m34 * other.m42,
     this->m31 * other.m13 + this->m32 * other.m23 + this->m33 * other.m33 + this->m34 * other.m43,
     this->m31 * other.m14 + this->m32 * other.m24 + this->m33 * other.m34 + this->m34 * other.m44,
 
+    // 네 번째 행
     this->m41 * other.m11 + this->m42 * other.m21 + this->m43 * other.m31 + this->m44 * other.m41,
     this->m41 * other.m12 + this->m42 * other.m22 + this->m43 * other.m32 + this->m44 * other.m42,
     this->m41 * other.m13 + this->m42 * other.m23 + this->m43 * other.m33 + this->m44 * other.m43,
@@ -282,10 +290,10 @@ Matrix4x4 Matrix4x4::operator*(const Matrix4x4& other) const {
   +-----------------+
   m11(x.x) + x, m22(y.y) + y, m33(z.z) + z
 */
-void Matrix4x4::translation(float x, float y, float z) {
-  this->m11 + x;
-  this->m22 + y;
-  this->m33 + z;
+void Matrix4x4::translate(float x, float y, float z) {
+  this->m11 += x;
+  this->m22 += y;
+  this->m33 += z;
 }
 
 /*
@@ -323,16 +331,39 @@ Vector3 Matrix4x4::transform(const Vector3& v) {
 */
 Vector4 Matrix4x4::transform4(const Vector3& v) {
   return {
-    this->m11 * v.x + this->m12 * v.y + this->m13 * v.z + this->m41,
-    this->m21 * v.x + this->m22 * v.y + this->m23 * v.z + this->m42,
-    this->m31 * v.x + this->m32 * v.y + this->m33 * v.z + this->m43,
+    this->m11 * v.x + this->m12 * v.y + this->m13 * v.z + this->m14,
+    this->m21 * v.x + this->m22 * v.y + this->m23 * v.z + this->m24,
+    this->m31 * v.x + this->m32 * v.y + this->m33 * v.z + this->m34,
     this->m41 * v.x + this->m42 * v.y + this->m43 * v.z + this->m44
   };
+}
+
+void Matrix4x4::rotate(float x, float y, float z) {
+  const float DEG2RAD = acos(-1.0f) / 180;
+  
+}
+
+void Matrix4x4::print() const {
+  const char* log = R"(
+    [ %6.1f %6.1f %6.1f %6.1f ]
+    [ %6.1f %6.1f %6.1f %6.1f ]
+    [ %6.1f %6.1f %6.1f %6.1f ]
+    [ %6.1f %6.1f %6.1f %6.1f ]
+  )";
+  printf(log, m11, m12, m13, m14, 
+              m21, m22, m23, m24, 
+              m31, m32, m33, m34, 
+              m41, m42, m43, m44);
 }
 
 namespace math {
 
 void lookAt(Matrix4x4& model, const Vector3& eye, const Vector3& at, const Vector3& up) {
+  // eye는 카메라의 위치, at은 카메라가 바라보고 있는 방향, up은 카메라 기준 위 방향
+  
+  // Z축을 가져오기 위해서 카메라가 바라보고 있는 방향에서 
+  // 현재 카메라의 위치 벡터를 뺀 벡터의 유닛 벡터를 구함
+
   // 카메라가 바라보고 있는 방향을 가져옴
   // 하지만 이는 실제 바라보는 방향과 반대되는 방향임
   // 왼손 좌표계를 만들어놓고 나중에 오른손 좌표계로 하기 위해서는
@@ -363,13 +394,14 @@ void lookAt(Matrix4x4& model, const Vector3& eye, const Vector3& at, const Vecto
   // 카메라 좌표계로 이동하려면 어파인 변환을 거쳐야 함
   // 어파인 변환은 이동과 회전으로 나뉘며 이를 적용할 때
   // 이들을 분리하여 변환 행렬의 역행렬을 구하기 쉽도록 함
-  model.m11 = xaxis.x, model.m21 = xaxis.y, model.m31 = xaxis.z, model.m41 = -math::dotProduct(xaxis, eye);
-  model.m12 = xaxis.x, model.m22 = xaxis.y, model.m32 = xaxis.z, model.m42 = -math::dotProduct(yaxis, eye);
-  model.m13 = xaxis.x, model.m23 = xaxis.y, model.m33 = xaxis.z, model.m43 = -math::dotProduct(zaxis, eye);
-  model.m41 = 0.0f, model.m21 = 0.0f, model.m31 = 0.0f, model.m41 = 1.0f;
+  // X, Y, Z, 순으로 채우고 // W 쪽 채우기
+  model.m11 = xaxis.x;   model.m12 = yaxis.x;     model.m13 = zaxis.x;    model.m14 = -math::dotProduct(xaxis, eye);
+  model.m21 = xaxis.y;   model.m22 = yaxis.y;     model.m23 = zaxis.y;    model.m24 = -math::dotProduct(yaxis, eye);
+  model.m31 = xaxis.z;   model.m32 = yaxis.z;     model.m33 = zaxis.z;    model.m34 = -math::dotProduct(zaxis, eye);
+  model.m41 = 0.0f;      model.m42 = 0.0f;        model.m43 = 0.0f;       model.m44 = 1.0f;
 }
 
-void perspectiveProject(Matrix4x4& out, float fovY, float aspect, float near, float far) {
+void perspectiveProject(Matrix4x4& out, float fovX, float aspect, float near, float far) {
   // 원근 투영 
   // 카메라 -> 클립 영역
   // 가로 세로 비율이 대칭인 것을 전제로 함
@@ -377,7 +409,8 @@ void perspectiveProject(Matrix4x4& out, float fovY, float aspect, float near, fl
   const float DEG2RAD = acos(-1.0f) / 180;
 
   // fovY 절반 탄젠트 값
-  float tangent = tan(fovY / 2 * DEG2RAD);
+  float tangent = tan(fovX/2 * DEG2RAD);
+
   // near 평면의 절반 높이 및 너비
   float top = near * tangent, right = top * aspect;
   
@@ -386,8 +419,10 @@ void perspectiveProject(Matrix4x4& out, float fovY, float aspect, float near, fl
   | m11  0   0   0  | | n/r  0   0   0  |
   |  0  m22  0   0  | |  0  n/t  0   0  |
   |  0   0  m33 m34 | |  0   0  m33 m34 |
-  |  0   0  m43 m44 | |  0   0  m43  0  |
+  |  0   0  m43 m44 | |  0   0   -1  0  |
   +-----------------+ +-----------------+
+  m11 = near / right
+  m22 = near / top
   m33 = -(far + near) / (far - near)
   m34 = -(2 * far * near) / (far - near)
   */
@@ -405,15 +440,16 @@ void viewport(Matrix4x4& out, float x, float y, float w, float h) {
   | m11  0   0  m14 | | w/2  0   0   0  |
   |  0  m22  0  m24 | |  0  h/2  0   0  |
   |  0   0  m33 m34 | |  0   0  m33 m34 |
-  |  0   0   0   1  | |  0   0  m43  0  |
+  |  0   0   0   1  | |  0   0  m43  1  |
   +-----------------+ +-----------------+
   */
   out.m11 = w / 2;
   out.m14 = x + w / 2;
   out.m22 = h / 2;
   out.m24 = y + h / 2;
-  out.m33 = 1 / 2;
-  out.m34 = 1 / 2;
+  out.m33 = 0.5f;
+  out.m34 = 0.5f;
+  out.m44 = 1.0f;
 }
 
 }

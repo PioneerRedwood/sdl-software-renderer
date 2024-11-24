@@ -26,6 +26,7 @@ bool SDLRenderer::init(SDL_Window* window, int w, int h) {
     std::cout << "SDL_CreateRenderer failed error: " << SDL_GetError() << std::endl;
     return false;
   }
+  return true;
 }
 
 void SDLRenderer::clear() { SDL_RenderClear(m_renderer); }
