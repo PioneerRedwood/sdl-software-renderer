@@ -1,6 +1,7 @@
 # Memo
-- 3차원 공간에 존재하는 정점을 어떤 과정을 거쳐서 2차원 화면에 그리게 할 수 있을지
-- OpenGL 기준 좌표계를 사용하여 SDL만을 갖고 렌더링
+- Rasterization: 3차원 공간에 존재하는 정점을 어떤 과정을 거쳐서 2차원 화면에 그리는 것
+- OpenGL 기준 좌표계를 사용하여 SDL만을 갖고 렌더링하는 것이 목표
+- 해당 메모에서는 그 과정에 찾아본 것을 정리
 
 ## OpenGL Rendering Pipeline
 해당 사이트에 있는 그림을 참고하는 것을 추천
@@ -134,3 +135,4 @@ Mat(eye) = Mat(view) X Mat(model)
 - [Cartesian coordinate system (English Wikipedia)](https://en.wikipedia.org/wiki/Cartesian_coordinate_system)
 - [Euler Angles](https://mathworld.wolfram.com/EulerAngles.html)
 - [OpenGL Projection Matrix](https://www.songho.ca/opengl/gl_projectionmatrix.html)
+

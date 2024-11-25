@@ -31,7 +31,7 @@ bool SDLProgram::init(int x, int y, int width, int height) {
     return false;
   }
 
-  m_window = SDL_CreateWindow("SDL-Examples", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, width, height,
+  m_window = SDL_CreateWindow("sdl-software-renderer", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, width, height,
                               SDL_WINDOW_SHOWN | SDL_WINDOW_RESIZABLE);
   if (m_window == nullptr) {
     std::cout << "SDL_CreateWindow failed error: " << SDL_GetError() << std::endl;

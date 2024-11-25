@@ -19,7 +19,7 @@
 #define Z_FAR  10.0f
 #define SCREEN_WIDTH 1024
 #define SCREEN_HEIGHT 768
-#define NUM_OF_STARS 1024
+#define NUM_OF_STARS 300
 
 ////////////////////////////////////////////////////////////
 
@@ -115,7 +115,7 @@ void renderStar() {
     drawPoint(pos.x, pos.y, color);
 
     // rest star position
-    star.z -= 0.04f;
+    star.z -= 0.02f;
     if(star.z < 0) {
       star = getNewPos();
     }
