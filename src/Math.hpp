@@ -171,19 +171,19 @@ namespace math {
  * https://arienbv.org/blog/2017/07/30/breakdown-of-the-lookAt-function-in-OpenGL/
  * @return Matrix4x4 
  */
-void lookAt(Matrix4x4& out, const Vector3& eye, const Vector3& at, const Vector3& up);
+void setupViewMatrix(Matrix4x4& out, const Vector3& eye, const Vector3& at, const Vector3& up);
 
 /**
  * @brief 원근 투영 프러스텀 매트릭스 반환
  * https://www.songho.ca/opengl/gl_projectionmatrix.html
  * @param camera 
  */
-void perspectiveProject(Matrix4x4& out, float fovY, float aspect, float near, float far);
+void setupPerspectiveProjectionMatrix(Matrix4x4& out, float fovY, float aspect, float near, float far);
 
 // https://www.songho.ca/opengl/gl_transform.html
 // https://www.songho.ca/opengl/gl_viewport.html
 // near, far는 기본값 각각 0, 1 사용
-void viewport(Matrix4x4& out, float x, float y, float w, float h);
+void setupViewportMatrix(Matrix4x4& out, float x, float y, float w, float h);
 
 } // namespace math
 
