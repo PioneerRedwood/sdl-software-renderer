@@ -349,7 +349,7 @@ void Matrix4x4::print() const {
 
 namespace math {
 
-void lookAt(Matrix4x4& model, const Vector3& eye, const Vector3& at, const Vector3& up) {
+void setupViewMatrix(Matrix4x4& model, const Vector3& eye, const Vector3& at, const Vector3& up) {
   // eye는 카메라의 위치, at은 카메라가 바라보고 있는 방향, up은 카메라 기준 위 방향
   
   // Z축을 가져오기 위해서 카메라가 바라보고 있는 방향에서 
@@ -392,7 +392,7 @@ void lookAt(Matrix4x4& model, const Vector3& eye, const Vector3& at, const Vecto
   model.m41 = 0.0f;      model.m42 = 0.0f;        model.m43 = 0.0f;       model.m44 = 1.0f;
 }
 
-void perspectiveProject(Matrix4x4& out, float fovY, float aspect, float near, float far) {
+void setupPerspectiveProjectionMatrix(Matrix4x4& out, float fovY, float aspect, float near, float far) {
   // 원근 투영 
   // 카메라 -> 클립 영역
   // 가로 세로 비율이 대칭인 것을 전제로 함
@@ -425,7 +425,7 @@ void perspectiveProject(Matrix4x4& out, float fovY, float aspect, float near, fl
   out.m44 = 0.0f;
 }
 
-void viewport(Matrix4x4& out, float x, float y, float w, float h) {
+void setupViewportMatrix(Matrix4x4& out, float x, float y, float w, float h) {
   /*
   +-----------------+ +-----------------+
   | m11  0   0  m14 | | w/2  0   0   0  |

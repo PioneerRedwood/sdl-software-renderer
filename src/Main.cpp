@@ -38,20 +38,22 @@ ssr::Vector3 g_positionsOfStars[NUM_OF_STARS];
 ////////////////////////////////////////////////////////////
 
 void initMatrices() {
-  // 뷰 행렬
-  ssr::math::lookAt(g_viewMat, g_camera.m_eye, g_camera.m_at, g_camera.m_up);
+	// 뷰 행렬
+	ssr::math::setupViewMatrix(g_viewMat, g_camera.m_eye, g_camera.m_at, g_camera.m_up);
 
-  // 프로젝션 행렬
-  ssr::math::perspectiveProject(g_projectionMat, g_camera.m_fov, 
-                                g_camera.m_aspect, Z_NEAR, Z_FAR);
-  
-  // 뷰포트 행렬
-  ssr::math::viewport(g_viewportMat, 0, 0, (float)g_program->width(), (float)g_program->height());
+	// 프로젝션 행렬
+	ssr::math::setupPerspectiveProjectionMatrix(g_projectionMat, g_camera.m_fov,
+		g_camera.m_aspect, Z_NEAR, Z_FAR);
+
+	// 뷰포트 행렬
+	ssr::math::setupViewportMatrix(g_viewportMat, 0, 0, 
+    (float)g_program->width(), (float)g_program->height());
 }
 
 #define LOG_MATRIX 0
 
-void transformToScreen(ssr::Matrix4x4& mat, ssr::Vector4& point) {
+void transformToScreen(ssr::Vector4& point) {
+  ssr::Matrix4x4 mat = ssr::Matrix4x4::identity;
 #if LOG_MATRIX
   std::cout << "=====================================\n";
   std::cout << "basic mat \n";
@@ -74,9 +76,7 @@ void transformToScreen(ssr::Matrix4x4& mat, ssr::Vector4& point) {
   std::cout << "=====================================\n";
 #else
   // Viewport * Projection * View * Model
-  mat = g_viewMat * mat;
-  mat = g_projectionMat * mat;
-  mat = g_viewportMat * mat;
+  mat = g_viewportMat * (g_projectionMat * (g_viewMat * mat));
 //  mat.print();
 #endif
 
@@ -107,8 +107,7 @@ void renderStar() {
   for(int i = 0; i < NUM_OF_STARS; ++i) {
     ssr::Vector3& star = g_positionsOfStars[i];
     ssr::Vector4 pos = { star.x, star.y, star.z, 1.0f };
-    ssr::Matrix4x4 mat = ssr::Matrix4x4::identity;
-    transformToScreen(mat, pos);
+    transformToScreen(pos);
 
     // draw point
     int color = 0xFFFFFFFF;
@@ -132,8 +131,6 @@ int main(int argc, char **argv)
   }
 
   ssr::SDLRenderer &renderer = g_program->renderer();
-//  SDL_RenderSetLogicalSize(renderer.native(), SCREEN_WIDTH, SCREEN_HEIGHT);
-//  SDL_RenderSetIntegerScale(renderer.native(), SDL_TRUE);
 
   // 메모리에 상주하는 프레임버퍼 생성
   g_frameBuffer = new unsigned int[g_program->width() * g_program->height() * 4];
