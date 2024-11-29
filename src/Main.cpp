@@ -53,11 +53,9 @@ void initMatrices() {
 #define LOG_MATRIX 0
 
 void transformToScreen(ssr::Vector4& point) {
-  ssr::Matrix4x4 mat = ssr::Matrix4x4::identity;
 #if LOG_MATRIX
+  ssr::Matrix4x4 mat = ssr::Matrix4x4::identity;
   std::cout << "=====================================\n";
-  std::cout << "basic mat \n";
-  mat.print();
 
   // 모델 뷰 변환
   mat = g_viewMat * mat;
@@ -74,13 +72,14 @@ void transformToScreen(ssr::Vector4& point) {
   std::cout << "after viewport applied\n";
   mat.print();
   std::cout << "=====================================\n";
+
+  point = mat * point;
 #else
   // Viewport * Projection * View * Model
-  mat = g_viewportMat * (g_projectionMat * (g_viewMat * mat));
+  point = (g_viewportMat * (g_projectionMat * g_viewMat)) * point;
 //  mat.print();
 #endif
 
-  point = mat * point;
 
   // 프로젝션 분할(projectionDevide) 클립좌표계 -> NDC로 변환
   point.perspectiveDivide();
