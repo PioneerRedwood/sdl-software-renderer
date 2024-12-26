@@ -114,7 +114,7 @@ void renderStar() {
 
     // rest star position
     star.z -= 0.02f;
-    if(star.z < 0) {
+    if(star.z <= 1.0f) {
       star = getNewPos();
     }
   }
@@ -175,14 +175,44 @@ int main(int argc, char **argv)
       {
         switch (event.key.keysym.sym)
         {
-        case SDLK_RIGHT:
-        {
-          move = 1;
+        case SDLK_UP: {
+          g_camera.m_fov++;
+          g_projectionMat = ssr::Matrix4x4::identity;
+          ssr::math::setupPerspectiveProjectionMatrix(
+            g_projectionMat, g_camera.m_fov, g_camera.m_aspect, Z_NEAR, Z_FAR);
           break;
         }
-        case SDLK_LEFT:
-        {
-          move = -1;
+        case SDLK_DOWN: {
+          g_camera.m_fov--;
+          g_projectionMat = ssr::Matrix4x4::identity;
+          ssr::math::setupPerspectiveProjectionMatrix(
+            g_projectionMat, g_camera.m_fov, g_camera.m_aspect, Z_NEAR, Z_FAR);
+          break;
+        }
+        case SDLK_RIGHT: {
+          g_camera.m_eye.x += 0.01f;
+          g_viewMat = ssr::Matrix4x4::identity;
+          ssr::math::setupViewMatrix(
+            g_viewMat, g_camera.m_eye, g_camera.m_at, g_camera.m_up);
+          break;
+        }
+        case SDLK_LEFT: {
+          g_camera.m_eye.x -= 0.01f;
+          g_viewMat = ssr::Matrix4x4::identity;
+          ssr::math::setupViewMatrix(
+            g_viewMat, g_camera.m_eye, g_camera.m_at, g_camera.m_up);
+          break;
+        }
+        case SDLK_r: {
+          g_camera.m_fov = 45.0f;
+          g_projectionMat = ssr::Matrix4x4::identity;
+          ssr::math::setupPerspectiveProjectionMatrix(
+            g_projectionMat, g_camera.m_fov, g_camera.m_aspect, Z_NEAR, Z_FAR);
+          
+          g_camera.m_eye.x = 0.0f;
+          g_viewMat = ssr::Matrix4x4::identity;
+          ssr::math::setupViewMatrix(
+            g_viewMat, g_camera.m_eye, g_camera.m_at, g_camera.m_up);
           break;
         }
         default:
