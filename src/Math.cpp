@@ -206,6 +206,14 @@ Vector4 Matrix4x4::operator*(const Vector4& other) const {
   };
 }
 
+Vector3 Matrix4x4::operator*(const Vector3& other) const {
+  return {
+    this->m11 * other.x + this->m12 * other.y + this->m13 * other.z + this->m14,
+    this->m21 * other.x + this->m22 * other.y + this->m23 * other.z + this->m24,
+    this->m31 * other.x + this->m32 * other.y + this->m33 * other.z + this->m34,
+  };
+}
+
 Matrix4x4 Matrix4x4::operator-(const Matrix4x4& other) const {
   return {
       this->m11 - other.m11, this->m12 - other.m12, this->m13 - other.m13, this->m14 - other.m14,
@@ -330,8 +338,19 @@ Vector4 Matrix4x4::transform4(const Vector3& v) {
 }
 
 void Matrix4x4::rotate(float x, float y, float z) {
-  const float DEG2RAD = acos(-1.0f) / 180;
+  // TODO: 추가 바람
+  //const float DEG2RAD = acos(-1.0f) / 180;
 
+}
+
+void Matrix4x4::rotateY(float rad) {
+  float cs = (float)cos(rad);
+  float ss = (float)sin(rad);
+
+  this->m11 = cs;
+  this->m13 = ss;
+  this->m31 = -ss;
+  this->m33 = cs;
 }
 
 void Matrix4x4::print() const {
@@ -397,13 +416,12 @@ void setupPerspectiveProjectionMatrix(Matrix4x4& out, float fovY, float aspect, 
   // 카메라 -> 클립 영역
   // 가로 세로 비율이 대칭인 것을 전제로 함
 
-  const float DEG2RAD = acos(-1.0f) / 180;
-
   // fovY 절반 탄젠트 값
   float tangent = tan(fovY/2 * DEG2RAD);
 
   // near 평면의 절반 높이 및 너비
-  float top = near * tangent, right = top * aspect;
+  float top = near * tangent;
+  float right = top * aspect;
   
   /*
   +-----------------+ +-----------------+

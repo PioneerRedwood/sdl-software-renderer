@@ -11,6 +11,9 @@
 #include <cstdlib>
 #include <cmath>
 
+//#define DEG2RAD acos(-1.0f) / 180.0f
+#define DEG2RAD (3.141592f / 180.0f)
+
 namespace ssr {
 
 struct Vector2 {
@@ -142,6 +145,7 @@ struct Matrix4x4 {
   // multiply
   Matrix4x4 operator*(const Matrix4x4& other) const;
   Vector4 operator*(const Vector4& other) const;
+  Vector3 operator*(const Vector3& other) const;
 
   static Matrix4x4 identity;
 
@@ -160,6 +164,9 @@ struct Matrix4x4 {
 
   /// @brief 주어진 각도로 행렬 회전
   void rotate(float x, float y, float z);
+
+  /// @brief Y축 기준으로 rad 만큼 회전
+  void rotateY(float rad);
 
   void print() const;
 };
@@ -186,5 +193,16 @@ void setupPerspectiveProjectionMatrix(Matrix4x4& out, float fovY, float aspect, 
 void setupViewportMatrix(Matrix4x4& out, float x, float y, float w, float h);
 
 } // namespace math
+
+struct UV {
+  float u, v;
+};
+
+struct Vertex {
+  Vector3 pos;
+  UV uv;
+  int color;
+  float rhw;
+};
 
 } // namespace ssr
