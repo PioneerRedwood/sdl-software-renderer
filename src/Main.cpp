@@ -92,6 +92,14 @@ void drawPoint(int x, int y, int color) {
   g_frameBuffer[x + y * SCREEN_WIDTH] = color;
 }
 
+void initStars() 
+{
+  // 스타 좌표 초기화
+  for (int i = 0; i < NUM_OF_STARS; ++i) {
+    g_positionsOfStars[i] = getNewPos();
+  }
+}
+
 ssr::Vector3 getNewPos() {
   float range = 2.f;
   ssr::Vector3 pos;
@@ -102,7 +110,7 @@ ssr::Vector3 getNewPos() {
   return pos;
 }
 
-void renderStar() {
+void renderStars() {
   for(int i = 0; i < NUM_OF_STARS; ++i) {
     ssr::Vector3& star = g_positionsOfStars[i];
     ssr::Vector4 pos = { star.x, star.y, star.z, 1.0f };
@@ -117,6 +125,57 @@ void renderStar() {
     if(star.z <= 1.0f) {
       star = getNewPos();
     }
+  }
+}
+
+void handleKeyInput(SDL_Event event) 
+{
+  switch (event.key.keysym.sym)
+  {
+  case SDLK_UP: {
+    g_camera.m_fov++;
+    g_projectionMat = ssr::Matrix4x4::identity;
+    ssr::math::setupPerspectiveProjectionMatrix(
+      g_projectionMat, g_camera.m_fov, g_camera.m_aspect, Z_NEAR, Z_FAR);
+    break;
+  }
+  case SDLK_DOWN: {
+    g_camera.m_fov--;
+    g_projectionMat = ssr::Matrix4x4::identity;
+    ssr::math::setupPerspectiveProjectionMatrix(
+      g_projectionMat, g_camera.m_fov, g_camera.m_aspect, Z_NEAR, Z_FAR);
+    break;
+  }
+  case SDLK_RIGHT: {
+    g_camera.m_eye.x += 0.01f;
+    g_viewMat = ssr::Matrix4x4::identity;
+    ssr::math::setupViewMatrix(
+      g_viewMat, g_camera.m_eye, g_camera.m_at, g_camera.m_up);
+    break;
+  }
+  case SDLK_LEFT: {
+    g_camera.m_eye.x -= 0.01f;
+    g_viewMat = ssr::Matrix4x4::identity;
+    ssr::math::setupViewMatrix(
+      g_viewMat, g_camera.m_eye, g_camera.m_at, g_camera.m_up);
+    break;
+  }
+  case SDLK_r: {
+    g_camera.m_fov = 45.0f;
+    g_projectionMat = ssr::Matrix4x4::identity;
+    ssr::math::setupPerspectiveProjectionMatrix(
+      g_projectionMat, g_camera.m_fov, g_camera.m_aspect, Z_NEAR, Z_FAR);
+
+    g_camera.m_eye.x = 0.0f;
+    g_viewMat = ssr::Matrix4x4::identity;
+    ssr::math::setupViewMatrix(
+      g_viewMat, g_camera.m_eye, g_camera.m_at, g_camera.m_up);
+    break;
+  }
+  default:
+  {
+    break;
+  }
   }
 }
 
@@ -147,11 +206,6 @@ int main(int argc, char **argv)
   // 매트릭스 초기화
   initMatrices();
 
-  // 스타 좌표 초기화
-  for(int i = 0; i < NUM_OF_STARS; ++i) {
-    g_positionsOfStars[i] = getNewPos();
-  }
-
   // Main loop
   g_program->updateTime();
   while (g_program->neededQuit() == false)
@@ -163,7 +217,6 @@ int main(int argc, char **argv)
     SDL_Event event;
     while (SDL_PollEvent(&event) != 0)
     {
-      int move = 0;
       switch (event.type)
       {
       case SDL_QUIT:
@@ -173,53 +226,7 @@ int main(int argc, char **argv)
       }
       case SDL_KEYDOWN:
       {
-        switch (event.key.keysym.sym)
-        {
-        case SDLK_UP: {
-          g_camera.m_fov++;
-          g_projectionMat = ssr::Matrix4x4::identity;
-          ssr::math::setupPerspectiveProjectionMatrix(
-            g_projectionMat, g_camera.m_fov, g_camera.m_aspect, Z_NEAR, Z_FAR);
-          break;
-        }
-        case SDLK_DOWN: {
-          g_camera.m_fov--;
-          g_projectionMat = ssr::Matrix4x4::identity;
-          ssr::math::setupPerspectiveProjectionMatrix(
-            g_projectionMat, g_camera.m_fov, g_camera.m_aspect, Z_NEAR, Z_FAR);
-          break;
-        }
-        case SDLK_RIGHT: {
-          g_camera.m_eye.x += 0.01f;
-          g_viewMat = ssr::Matrix4x4::identity;
-          ssr::math::setupViewMatrix(
-            g_viewMat, g_camera.m_eye, g_camera.m_at, g_camera.m_up);
-          break;
-        }
-        case SDLK_LEFT: {
-          g_camera.m_eye.x -= 0.01f;
-          g_viewMat = ssr::Matrix4x4::identity;
-          ssr::math::setupViewMatrix(
-            g_viewMat, g_camera.m_eye, g_camera.m_at, g_camera.m_up);
-          break;
-        }
-        case SDLK_r: {
-          g_camera.m_fov = 45.0f;
-          g_projectionMat = ssr::Matrix4x4::identity;
-          ssr::math::setupPerspectiveProjectionMatrix(
-            g_projectionMat, g_camera.m_fov, g_camera.m_aspect, Z_NEAR, Z_FAR);
-          
-          g_camera.m_eye.x = 0.0f;
-          g_viewMat = ssr::Matrix4x4::identity;
-          ssr::math::setupViewMatrix(
-            g_viewMat, g_camera.m_eye, g_camera.m_at, g_camera.m_up);
-          break;
-        }
-        default:
-        {
-          break;
-        }
-        }
+        handleKeyInput(event);
         break;
       }
       default:
@@ -231,7 +238,8 @@ int main(int argc, char **argv)
     
     // Update rendering objects
     memset((char*)g_frameBuffer, 0, sizeof(int) * SCREEN_WIDTH * SCREEN_HEIGHT);
-    renderStar();
+
+    renderStars();
 
     SDL_UpdateTexture(g_screenTexture, nullptr, g_frameBuffer, SCREEN_WIDTH * 4);
     SDL_RenderCopy(renderer.native(), g_screenTexture, nullptr, nullptr);
