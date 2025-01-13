@@ -92,43 +92,7 @@ void drawPoint(int x, int y, int color) {
   g_frameBuffer[x + y * SCREEN_WIDTH] = color;
 }
 
-void initStars() 
-{
-  // 스타 좌표 초기화
-  for (int i = 0; i < NUM_OF_STARS; ++i) {
-    g_positionsOfStars[i] = getNewPos();
-  }
-}
-
-ssr::Vector3 getNewPos() {
-  float range = 2.f;
-  ssr::Vector3 pos;
-  pos.x = (rand() % (int)(range * 2 * 10) * 0.1f) - range;
-  pos.y = (rand() % (int)(range * 2 * 10) * 0.1f) - range;
-  pos.z = (float)(rand() % (int)Z_FAR);
-
-  return pos;
-}
-
-void renderStars() {
-  for(int i = 0; i < NUM_OF_STARS; ++i) {
-    ssr::Vector3& star = g_positionsOfStars[i];
-    ssr::Vector4 pos = { star.x, star.y, star.z, 1.0f };
-    transformToScreen(pos);
-
-    // draw point
-    int color = 0xFFFFFFFF;
-    drawPoint(pos.x, pos.y, color);
-
-    // rest star position
-    star.z -= 0.02f;
-    if(star.z <= 1.0f) {
-      star = getNewPos();
-    }
-  }
-}
-
-void handleKeyInput(SDL_Event event) 
+void handleKeyInput(SDL_Event event)
 {
   switch (event.key.keysym.sym)
   {
@@ -179,6 +143,45 @@ void handleKeyInput(SDL_Event event)
   }
 }
 
+////////////////////////////////////////////////////////////
+
+ssr::Vector3 getNewPos() {
+  float range = 2.f;
+  ssr::Vector3 pos;
+  pos.x = (rand() % (int)(range * 2 * 10) * 0.1f) - range;
+  pos.y = (rand() % (int)(range * 2 * 10) * 0.1f) - range;
+  pos.z = (float)(rand() % (int)Z_FAR);
+
+  return pos;
+}
+
+void initStars() {
+    // 스타 좌표 초기화
+  for(int i = 0; i < NUM_OF_STARS; ++i) {
+    g_positionsOfStars[i] = getNewPos();
+  }
+}
+
+void renderStars() {
+  for(int i = 0; i < NUM_OF_STARS; ++i) {
+    ssr::Vector3& star = g_positionsOfStars[i];
+    ssr::Vector4 pos = { star.x, star.y, star.z, 1.0f };
+    transformToScreen(pos);
+
+    // draw point
+    int color = 0xFFFFFFFF;
+    drawPoint(pos.x, pos.y, color);
+
+    // rest star position
+    star.z -= 0.02f;
+    if(star.z <= 1.0f) {
+      star = getNewPos();
+    }
+  }
+}
+
+////////////////////////////////////////////////////////////
+
 int main(int argc, char **argv)
 {
   srand((unsigned)time(nullptr));
@@ -205,6 +208,8 @@ int main(int argc, char **argv)
 
   // 매트릭스 초기화
   initMatrices();
+
+  initStars();
 
   // Main loop
   g_program->updateTime();
