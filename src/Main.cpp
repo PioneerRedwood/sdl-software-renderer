@@ -33,7 +33,6 @@ SDL_Texture* g_screenTexture;
 
 ssr::Camera g_camera;
 unsigned int* g_frameBuffer = nullptr;
-ssr::Vector3 g_positionsOfStars[NUM_OF_STARS];
 
 ////////////////////////////////////////////////////////////
 
@@ -50,36 +49,9 @@ void initMatrices() {
     (float)g_program->width(), (float)g_program->height());
 }
 
-#define LOG_MATRIX 0
-
 void transformToScreen(ssr::Vector4& point) {
-#if LOG_MATRIX
-  ssr::Matrix4x4 mat = ssr::Matrix4x4::identity;
-  std::cout << "=====================================\n";
-
-  // 모델 뷰 변환
-  mat = g_viewMat * mat;
-  std::cout << "after view applied\n";
-  mat.print();
-
-  // 프로젝션 
-  mat = g_projectionMat * mat;
-  std::cout << "after proj applied\n";
-  mat.print();
-
-  // 뷰포트 변환
-  mat = g_viewportMat * mat;
-  std::cout << "after viewport applied\n";
-  mat.print();
-  std::cout << "=====================================\n";
-
-  point = mat * point;
-#else
   // Viewport * Projection * View * Model
   point = (g_viewportMat * (g_projectionMat * g_viewMat)) * point;
-//  mat.print();
-#endif
-
 
   // 프로젝션 분할(projectionDevide) 클립좌표계 -> NDC로 변환
   point.perspectiveDivide();
@@ -136,48 +108,56 @@ void handleKeyInput(SDL_Event event)
       g_viewMat, g_camera.m_eye, g_camera.m_at, g_camera.m_up);
     break;
   }
-  default:
-  {
-    break;
-  }
+  default: break;
   }
 }
 
 ////////////////////////////////////////////////////////////
 
-ssr::Vector3 getNewPos() {
-  float range = 2.f;
-  ssr::Vector3 pos;
-  pos.x = (rand() % (int)(range * 2 * 10) * 0.1f) - range;
-  pos.y = (rand() % (int)(range * 2 * 10) * 0.1f) - range;
-  pos.z = (float)(rand() % (int)Z_FAR);
+// 삼각형 정점
+ssr::Vector3 g_vertices[3];
 
-  return pos;
+void initVertices() {
+  g_vertices[0] = {  0.0f, 0.2f, 1.0f };
+  g_vertices[1] = { -0.1f, 0.0f, 1.0f };
+  g_vertices[2] = { +0.1f, 0.0f, 1.0f };
 }
 
-void initStars() {
-    // 스타 좌표 초기화
-  for(int i = 0; i < NUM_OF_STARS; ++i) {
-    g_positionsOfStars[i] = getNewPos();
-  }
+void drawLine(const ssr::Vector2& startPos, const ssr::Vector2& endPos, int color) {
+  // #1 Bresenham's line algorithm
+  // https://en.wikipedia.org/wiki/Bresenham%27s_line_algorithm
+  int width = endPos.x - startPos.x;
+  int height = endPos.y - startPos.y;
+
+  bool isGradualSlope = abs(width) >= abs(height);
+  int dx = (width >= 0) ? 1 : -1, dy = (height >= 0) ? 1 : -1,
+    fw = dx * width, fh = dy * height;
+
+  int f = isGradualSlope ? fh * 2 - fw : 2 * fw - fh;
 }
 
-void renderStars() {
-  for(int i = 0; i < NUM_OF_STARS; ++i) {
-    ssr::Vector3& star = g_positionsOfStars[i];
-    ssr::Vector4 pos = { star.x, star.y, star.z, 1.0f };
-    transformToScreen(pos);
+// 주어진 세 개의 3D 정점으로 이루어진 삼각형을 그리기
+void renderTriangleLines() {
+  ssr::Vector4 verts[3] = {
+    ssr::Vector4(g_vertices[0].x, g_vertices[0].y, g_vertices[0].z, 0.0f),
+    ssr::Vector4(g_vertices[1].x, g_vertices[1].y, g_vertices[1].z, 0.0f),
+    ssr::Vector4(g_vertices[2].x, g_vertices[2].y, g_vertices[2].z, 0.0f)
+  };
 
-    // draw point
-    int color = 0xFFFFFFFF;
-    drawPoint(pos.x, pos.y, color);
-
-    // rest star position
-    star.z -= 0.02f;
-    if(star.z <= 1.0f) {
-      star = getNewPos();
-    }
+  // 화면 좌표계로 변환
+  ssr::Matrix4x4 transformMat = (g_viewportMat * (g_projectionMat * g_viewMat));
+  for (int i = 0; i < 3; ++i) {
+    verts[i] = transformMat * verts[i];
+    verts[i].perspectiveDivide();
   }
+
+  // 주어진 세 개의 정점으로 픽셀에 선분 그리기 시도 여기서부턴 2D 선분 그리기와 동일
+  // 
+  
+  // 디버그: 정점 그리기
+  drawPoint(verts[0].x, verts[0].y, 0xFFFFFFFF);
+  drawPoint(verts[1].x, verts[1].y, 0xFFFFFFFF);
+  drawPoint(verts[2].x, verts[2].y, 0xFFFFFFFF);
 }
 
 ////////////////////////////////////////////////////////////
@@ -209,7 +189,7 @@ int main(int argc, char **argv)
   // 매트릭스 초기화
   initMatrices();
 
-  initStars();
+  initVertices();
 
   // Main loop
   g_program->updateTime();
@@ -244,7 +224,7 @@ int main(int argc, char **argv)
     // Update rendering objects
     memset((char*)g_frameBuffer, 0, sizeof(int) * SCREEN_WIDTH * SCREEN_HEIGHT);
 
-    renderStars();
+    renderTriangleLines();
 
     SDL_UpdateTexture(g_screenTexture, nullptr, g_frameBuffer, SCREEN_WIDTH * 4);
     SDL_RenderCopy(renderer.native(), g_screenTexture, nullptr, nullptr);

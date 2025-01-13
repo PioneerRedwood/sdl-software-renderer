@@ -161,6 +161,12 @@ struct Matrix4x4 {
   /// @brief 주어진 각도로 행렬 회전
   void rotate(float x, float y, float z);
 
+  void rotateX(float deg);
+
+  void rotateY(float deg);
+
+  void rotateZ(float deg);
+
   void print() const;
 };
 

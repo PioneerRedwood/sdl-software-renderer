@@ -331,7 +331,20 @@ Vector4 Matrix4x4::transform4(const Vector3& v) {
 
 void Matrix4x4::rotate(float x, float y, float z) {
   const float DEG2RAD = acos(-1.0f) / 180;
+}
 
+void Matrix4x4::rotateX(float deg) {
+  // TODO: 구현 바람
+  // 각도에서 라디안으로 바꾸는 것은 전역적인 변수로 선언하는 것이 나아보임
+  static const float DEG2RAD = acos(-1.0f) / 180;
+}
+
+void Matrix4x4::rotateY(float deg) {
+  // TODO: 구현 바람
+}
+
+void Matrix4x4::rotateZ(float deg) {
+  // TODO: 구현 바람
 }
 
 void Matrix4x4::print() const {
