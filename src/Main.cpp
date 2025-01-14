@@ -123,17 +123,38 @@ void initVertices() {
   g_vertices[2] = { +0.1f, 0.0f, 1.0f };
 }
 
-void drawLine(const ssr::Vector2& startPos, const ssr::Vector2& endPos, int color) {
-  // #1 Bresenham's line algorithm
-  // https://en.wikipedia.org/wiki/Bresenham%27s_line_algorithm
-  int width = endPos.x - startPos.x;
-  int height = endPos.y - startPos.y;
+// #1 Bresenham's line algorithm
+// https://en.wikipedia.org/wiki/Bresenham%27s_line_algorithm
+void drawLineWithBresenhamAlgorithm(const ssr::Vector2& startPos, const ssr::Vector2& endPos, int color) {
+  static int whiteColor = 0xFFFFFFFF;
+  
+  // 기울기가 음수인 경우 
+  auto drawLow = [](int x0, int y0, int x1, int y1) {
+    int dx = x1 - x0, dy = y1 - y0;
+    int yi = 1;
+    if (dy < 0) {
+      yi = -1;
+      dy = -dy;
+    }
+    int d = (2 * dy) - dx;
+    int y = y0;
 
-  bool isGradualSlope = abs(width) >= abs(height);
-  int dx = (width >= 0) ? 1 : -1, dy = (height >= 0) ? 1 : -1,
-    fw = dx * width, fh = dy * height;
+    for (int x = x0; x < x1; ++x) {
+      drawPoint(x, y, whiteColor);
+      if (d > 0) {
+        y = y + yi;
+        d = d + (2 * (dy - dx));
+      }
+      else {
+        d = d + 2 * dy;
+      }
+    }
+  };
 
-  int f = isGradualSlope ? fh * 2 - fw : 2 * fw - fh;
+  // 기울기가 양수인 경우
+  auto drawHigh = [](int x0, int y0, int x1, int y1) {
+    
+  };
 }
 
 // 주어진 세 개의 3D 정점으로 이루어진 삼각형을 그리기
