@@ -125,11 +125,8 @@ void initVertices() {
 
 // #1 Bresenham's line algorithm
 // https://en.wikipedia.org/wiki/Bresenham%27s_line_algorithm
-void drawLineWithBresenhamAlgorithm(const ssr::Vector2& startPos, const ssr::Vector2& endPos, int color) {
-  static int whiteColor = 0xFFFFFFFF;
-  
-  // 기울기가 음수인 경우 
-  auto drawLow = [](int x0, int y0, int x1, int y1) {
+void drawLineWithBresenhamAlgorithm(const ssr::Vector2& startPos, const ssr::Vector2& endPos, int color) { 
+  auto drawLow = [](int x0, int y0, int x1, int y1, int color) {
     int dx = x1 - x0, dy = y1 - y0;
     int yi = 1;
     if (dy < 0) {
@@ -140,7 +137,7 @@ void drawLineWithBresenhamAlgorithm(const ssr::Vector2& startPos, const ssr::Vec
     int y = y0;
 
     for (int x = x0; x < x1; ++x) {
-      drawPoint(x, y, whiteColor);
+      drawPoint(x, y, color);
       if (d > 0) {
         y = y + yi;
         d = d + (2 * (dy - dx));
@@ -151,10 +148,44 @@ void drawLineWithBresenhamAlgorithm(const ssr::Vector2& startPos, const ssr::Vec
     }
   };
 
-  // 기울기가 양수인 경우
-  auto drawHigh = [](int x0, int y0, int x1, int y1) {
+  auto drawHigh = [](int x0, int y0, int x1, int y1, int color) {
+    int dx = x1 - x0, dy = y1 - y0;
+    int xi = 1;
+    if (dx < 0) {
+      xi = -1;
+      dx = -dx;
+    }
+    int d = (2 * dx) - dy;
+    int x = x0;
     
+    for (int y = y0; y < y1; ++y) {
+      drawPoint(x, y, color);
+      if (d > 0) {
+        x = x + xi;
+        d = d + (2 * (dx - dy));
+      }
+      else {
+        d = d + 2 * dx;
+      }
+    }
   };
+
+  if (abs(endPos.y - startPos.y) < abs(endPos.x - startPos.x)) {
+    if (startPos.x > endPos.x) {
+      drawLow(endPos.x, endPos.y, startPos.x, startPos.y, color);
+    }
+    else {
+      drawLow(startPos.x, startPos.y, endPos.x, endPos.y, color);
+    }
+  }
+  else {
+    if (startPos.y > endPos.y) {
+      drawHigh(endPos.x, endPos.y, startPos.x, startPos.y, color);
+    }
+    else {
+      drawHigh(startPos.x, startPos.y, endPos.x, endPos.y, color);
+    }
+  }
 }
 
 // 주어진 세 개의 3D 정점으로 이루어진 삼각형을 그리기
@@ -173,12 +204,15 @@ void renderTriangleLines() {
   }
 
   // 주어진 세 개의 정점으로 픽셀에 선분 그리기 시도 여기서부턴 2D 선분 그리기와 동일
-  // 
-  
-  // 디버그: 정점 그리기
-  drawPoint(verts[0].x, verts[0].y, 0xFFFFFFFF);
-  drawPoint(verts[1].x, verts[1].y, 0xFFFFFFFF);
-  drawPoint(verts[2].x, verts[2].y, 0xFFFFFFFF);
+  ssr::Vector2 triangle2DVerts[3] = {
+    {verts[0].x, verts[0].y},
+    {verts[1].x, verts[1].y},
+    {verts[2].x, verts[2].y}
+  };
+  static const int whiteColor = 0xFFFFFFFF;
+  drawLineWithBresenhamAlgorithm(triangle2DVerts[0], triangle2DVerts[1], whiteColor);
+  drawLineWithBresenhamAlgorithm(triangle2DVerts[1], triangle2DVerts[2], whiteColor);
+  drawLineWithBresenhamAlgorithm(triangle2DVerts[0], triangle2DVerts[2], whiteColor);
 }
 
 ////////////////////////////////////////////////////////////
@@ -251,7 +285,7 @@ int main(int argc, char **argv)
     SDL_RenderCopy(renderer.native(), g_screenTexture, nullptr, nullptr);
     renderer.present();
 
-    SDL_Delay(1); // Almost no delayed
+    SDL_Delay(1);
   }
 
   return 0;
