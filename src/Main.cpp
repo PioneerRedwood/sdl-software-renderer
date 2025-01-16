@@ -116,11 +116,13 @@ void handleKeyInput(SDL_Event event)
 
 // 삼각형 정점
 ssr::Vector3 g_vertices[3];
+ssr::Matrix4x4 g_vertsMat = ssr::Matrix4x4::identity;
+float g_triangleRotationRadian = 0.0f;
 
 void initVertices() {
-  g_vertices[0] = {  0.0f, 0.2f, 1.0f };
-  g_vertices[1] = { -0.1f, 0.0f, 1.0f };
-  g_vertices[2] = { +0.1f, 0.0f, 1.0f };
+  g_vertices[0] = { -0.2f, +0.2f, +0.0f };
+  g_vertices[1] = { +0.2f, +0.2f, +0.0f };
+  g_vertices[2] = { +0.0f, -0.2f, +0.0f };
 }
 
 // #1 Bresenham's line algorithm
@@ -190,29 +192,28 @@ void drawLineWithBresenhamAlgorithm(const ssr::Vector2& startPos, const ssr::Vec
 
 // 주어진 세 개의 3D 정점으로 이루어진 삼각형을 그리기
 void renderTriangleLines() {
-  ssr::Vector4 verts[3] = {
-    ssr::Vector4(g_vertices[0].x, g_vertices[0].y, g_vertices[0].z, 0.0f),
-    ssr::Vector4(g_vertices[1].x, g_vertices[1].y, g_vertices[1].z, 0.0f),
-    ssr::Vector4(g_vertices[2].x, g_vertices[2].y, g_vertices[2].z, 0.0f)
-  };
+  // 회전 행렬 적용
+  ssr::Matrix4x4 rotationMat = ssr::Matrix4x4::identity;
+  g_triangleRotationRadian += 0.7f;
+  rotationMat.rotateY(g_triangleRotationRadian);
 
-  // 화면 좌표계로 변환
+  ssr::Vector3 tri[3];
   ssr::Matrix4x4 transformMat = (g_viewportMat * (g_projectionMat * g_viewMat));
+  
+  // 화면 좌표계로 변환
   for (int i = 0; i < 3; ++i) {
-    verts[i] = transformMat * verts[i];
-    verts[i].perspectiveDivide();
+    tri[i] = rotationMat * g_vertices[i];
+    ssr::Vector4 temp = { tri[i].x, tri[i].y, tri[i].z, 1.0f };
+    temp = transformMat * temp;
+    temp.perspectiveDivide();
+    tri[i].x = temp.x, tri[i].y = temp.y, tri[i].z = temp.z;
   }
 
   // 주어진 세 개의 정점으로 픽셀에 선분 그리기 시도 여기서부턴 2D 선분 그리기와 동일
-  ssr::Vector2 triangle2DVerts[3] = {
-    {verts[0].x, verts[0].y},
-    {verts[1].x, verts[1].y},
-    {verts[2].x, verts[2].y}
-  };
   static const int whiteColor = 0xFFFFFFFF;
-  drawLineWithBresenhamAlgorithm(triangle2DVerts[0], triangle2DVerts[1], whiteColor);
-  drawLineWithBresenhamAlgorithm(triangle2DVerts[1], triangle2DVerts[2], whiteColor);
-  drawLineWithBresenhamAlgorithm(triangle2DVerts[0], triangle2DVerts[2], whiteColor);
+  drawLineWithBresenhamAlgorithm({ tri[0].x, tri[0].y }, { tri[1].x, tri[1].y }, whiteColor);
+  drawLineWithBresenhamAlgorithm({ tri[1].x, tri[1].y }, { tri[2].x, tri[2].y }, whiteColor);
+  drawLineWithBresenhamAlgorithm({ tri[0].x, tri[0].y }, { tri[2].x, tri[2].y }, whiteColor);
 }
 
 ////////////////////////////////////////////////////////////

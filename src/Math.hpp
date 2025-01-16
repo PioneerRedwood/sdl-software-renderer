@@ -142,6 +142,7 @@ struct Matrix4x4 {
   // multiply
   Matrix4x4 operator*(const Matrix4x4& other) const;
   Vector4 operator*(const Vector4& other) const;
+  Vector3 operator*(const Vector3& other) const;
 
   static Matrix4x4 identity;
 

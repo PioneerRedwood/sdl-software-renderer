@@ -206,6 +206,14 @@ Vector4 Matrix4x4::operator*(const Vector4& other) const {
   };
 }
 
+Vector3 Matrix4x4::operator*(const Vector3& other) const {
+  return {
+    this->m11 * other.x + this->m12 * other.y + this->m13 * other.z + this->m14,
+    this->m21 * other.x + this->m22 * other.y + this->m23 * other.z + this->m24,
+    this->m31 * other.x + this->m32 * other.y + this->m33 * other.z + this->m34,
+  };
+}
+
 Matrix4x4 Matrix4x4::operator-(const Matrix4x4& other) const {
   return {
       this->m11 - other.m11, this->m12 - other.m12, this->m13 - other.m13, this->m14 - other.m14,
@@ -340,7 +348,14 @@ void Matrix4x4::rotateX(float deg) {
 }
 
 void Matrix4x4::rotateY(float deg) {
-  // TODO: 구현 바람
+  static const float DEG2RAD = acos(-1.0f) / 180;
+  float cs = (float)cos(deg * DEG2RAD);
+  float ss = (float)sin(deg * DEG2RAD);
+
+  this->m11 = cs;
+  this->m13 = ss;
+  this->m31 = -ss;
+  this->m33 = cs;
 }
 
 void Matrix4x4::rotateZ(float deg) {
