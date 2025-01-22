@@ -91,6 +91,12 @@ Vector3 Vector3::normalize() const {
   return (*this) / mag;
 }
 
+std::string Vector3::toString() const {
+  char buf[64];
+  snprintf(buf, 64, "(%4.2f, %4.2f, %4.2f)", this->x, this->y, this->z);
+  return std::string(buf);
+}
+
 namespace math {
 
 Vector3 subtract(const Vector3& v1, const Vector3& v2) {
@@ -197,6 +203,16 @@ Matrix4x4 Matrix4x4::operator*(float scalar) const {
   };
 }
 
+/*
+  행렬 및 벡터 곱
+  +-----------------+   +---+
+  | m11 m12 m13 m14 |   | x |
+  | m21 m22 m23 m24 | X | y |
+  | m31 m32 m33 m34 |   | z |
+  | m41 m42 m43 m44 |   | w |
+  +-----------------+   +---+
+  ...
+*/
 Vector4 Matrix4x4::operator*(const Vector4& other) const {
   return {
     this->m11 * other.x + this->m12 * other.y + this->m13 * other.z + this->m14 * other.w,
@@ -342,9 +358,15 @@ void Matrix4x4::rotate(float x, float y, float z) {
 }
 
 void Matrix4x4::rotateX(float deg) {
-  // TODO: 구현 바람
-  // 각도에서 라디안으로 바꾸는 것은 전역적인 변수로 선언하는 것이 나아보임
   static const float DEG2RAD = acos(-1.0f) / 180;
+  float cs = (float)cos(deg * DEG2RAD);
+  float ss = (float)sin(deg * DEG2RAD);
+
+  this->m22 = cs;
+  this->m32 = -ss;
+
+  this->m23 = ss;
+  this->m33 = cs;
 }
 
 void Matrix4x4::rotateY(float deg) {
@@ -353,22 +375,31 @@ void Matrix4x4::rotateY(float deg) {
   float ss = (float)sin(deg * DEG2RAD);
 
   this->m11 = cs;
-  this->m13 = ss;
-  this->m31 = -ss;
+  this->m31 = ss;
+  this->m13 = -ss;
   this->m33 = cs;
 }
 
 void Matrix4x4::rotateZ(float deg) {
-  // TODO: 구현 바람
+  static const float DEG2RAD = acos(-1.0f) / 180;
+  float cs = (float)cos(deg * DEG2RAD);
+  float ss = (float)sin(deg * DEG2RAD);
+
+  this->m11 = cs;
+  this->m21 = -ss;
+
+  this->m12 = ss;
+  this->m23 = cs;
 }
 
 void Matrix4x4::print() const {
-  const char* log = R"(
-    [ %6.1f %6.1f %6.1f %6.1f ]
-    [ %6.1f %6.1f %6.1f %6.1f ]
-    [ %6.1f %6.1f %6.1f %6.1f ]
-    [ %6.1f %6.1f %6.1f %6.1f ]
-  )";
+  static const char* log = R"(
+    [ %4.2f %4.2f %4.2f %4.2f ]
+    [ %4.2f %4.2f %4.2f %4.2f ]
+    [ %4.2f %4.2f %4.2f %4.2f ]
+    [ %4.2f %4.2f %4.2f %4.2f ]
+
+)";
   printf(log, m11, m12, m13, m14, 
               m21, m22, m23, m24, 
               m31, m32, m33, m34, 
@@ -377,7 +408,8 @@ void Matrix4x4::print() const {
 
 namespace math {
 
-void setupViewMatrix(Matrix4x4& model, const Vector3& eye, const Vector3& at, const Vector3& up) {
+void setupCameraMatrix(Matrix4x4& model, const Vector3& eye, const Vector3& at, const Vector3& up) {
+  // https://arienbv.org/blog/2017/07/30/breakdown-of-the-lookAt-function-in-OpenGL/
   // eye는 카메라의 위치, at은 카메라가 바라보고 있는 방향, up은 카메라 기준 위 방향
   
   // Z축을 가져오기 위해서 카메라가 바라보고 있는 방향에서 
@@ -387,6 +419,13 @@ void setupViewMatrix(Matrix4x4& model, const Vector3& eye, const Vector3& at, co
   // 하지만 이는 실제 바라보는 방향과 반대되는 방향임
   // 왼손 좌표계를 만들어놓고 나중에 오른손 좌표계로 하기 위해서는
   // z축을 기준으로 뒤집으면 됨 (이때는 왼손 좌표계)
+
+  //Vector3 Vector3::normalize() const {
+  //  const float mag = (float)std::sqrt(this->x * this->x + this->y * this->y +
+  //    this->z * this->z);
+  //  return (*this) / mag;
+  //}
+
   Vector3 zaxis = (at - eye).normalize();
 
   // 두 개의 다른 벡터 축 계산
@@ -396,10 +435,20 @@ void setupViewMatrix(Matrix4x4& model, const Vector3& eye, const Vector3& at, co
   // 벡터를 외적하여 x축을 구함. 이때 내적하고 난 뒤
   // 벡터 정규화를 거쳐야 함 up 벡터는 유닛 벡터가 아니기
   // 때문.
-  Vector3 xaxis = math::crossProduct(zaxis, up).normalize();
+
+  //Vector3 crossProduct(const Vector3 & v1, const Vector3 & v2) {
+  //  return {
+  //    v1.y * v2.z - v1.z * v2.y,
+  //    v1.z * v2.x - v1.x * v2.z,
+  //    v1.x * v2.y - v1.y * v2.z
+  //  };
+  //}
+  Vector3 xaxis = (math::crossProduct(zaxis, up)).normalize();
   
   //  2. 구한 x축과 z축을 외적하여 y축 구하기
   Vector3 yaxis = math::crossProduct(xaxis, zaxis);
+
+  zaxis = Vector3(-zaxis.x, -zaxis.y, -zaxis.z);
 
   /*
   +-----------------+
@@ -414,10 +463,15 @@ void setupViewMatrix(Matrix4x4& model, const Vector3& eye, const Vector3& at, co
   // 어파인 변환은 이동과 회전으로 나뉘며 이를 적용할 때
   // 이들을 분리하여 변환 행렬의 역행렬을 구하기 쉽도록 함
   // X, Y, Z, 순으로 채우고 // W 쪽 채우기
-  model.m11 = xaxis.x;   model.m12 = yaxis.x;     model.m13 = zaxis.x;    model.m14 = -math::dotProduct(xaxis, eye);
-  model.m21 = xaxis.y;   model.m22 = yaxis.y;     model.m23 = zaxis.y;    model.m24 = -math::dotProduct(yaxis, eye);
-  model.m31 = xaxis.z;   model.m32 = yaxis.z;     model.m33 = zaxis.z;    model.m34 = -math::dotProduct(zaxis, eye);
-  model.m41 = 0.0f;      model.m42 = 0.0f;        model.m43 = 0.0f;       model.m44 = 1.0f;
+
+  //float dotProduct(const Vector3 & v1, const Vector3 & v2) {
+  //  return v1.x * v2.x + v1.y * v2.y + v1.z + v2.z;
+  //}
+
+  model.m11 = xaxis.x;  model.m12 = xaxis.y;  model.m13 = xaxis.z;  model.m14 = -math::dotProduct(xaxis, eye);
+  model.m21 = yaxis.x;  model.m22 = yaxis.y;  model.m23 = yaxis.z;  model.m24 = -math::dotProduct(yaxis, eye);
+  model.m31 = zaxis.x;  model.m32 = zaxis.y;  model.m33 = zaxis.z;  model.m34 = -math::dotProduct(zaxis, eye);
+  model.m41 = 0.0f;     model.m42 = 0.0f;     model.m43 = 0.0f;     model.m44 = 1.0f;
 }
 
 void setupPerspectiveProjectionMatrix(Matrix4x4& out, float fovY, float aspect, float near, float far) {
@@ -434,6 +488,8 @@ void setupPerspectiveProjectionMatrix(Matrix4x4& out, float fovY, float aspect, 
   float top = near * tangent, right = top * aspect;
   
   /*
+  * Using Vertical FOV
+  * https://www.songho.ca/opengl/gl_projectionmatrix.html
   +-----------------+ +-----------------+
   | m11  0   0   0  | | n/r  0   0   0  |
   |  0  m22  0   0  | |  0  n/t  0   0  |
@@ -455,6 +511,7 @@ void setupPerspectiveProjectionMatrix(Matrix4x4& out, float fovY, float aspect, 
 
 void setupViewportMatrix(Matrix4x4& out, float x, float y, float w, float h) {
   /*
+  * https://www.songho.ca/opengl/gl_viewport.html
   +-----------------+ +-----------------+
   | m11  0   0  m14 | | w/2  0   0   0  |
   |  0  m22  0  m24 | |  0  h/2  0   0  |
@@ -466,8 +523,10 @@ void setupViewportMatrix(Matrix4x4& out, float x, float y, float w, float h) {
   out.m14 = x + w / 2;
   out.m22 = h / 2;
   out.m24 = y + h / 2;
-  out.m33 = 0.5f;
-  out.m34 = 0.5f;
+  //out.m33 = 0.5f; // 0.1 - 10 / 2
+  //out.m34 = 0.5f; // 0.1 + 10 / 2
+  out.m33 = (0.1f - 10.0f) / 2; // 0.1 - 10 / 2
+  out.m34 = (0.1f + 10.0f) / 2; // 0.1 + 10 / 2
   out.m44 = 1.0f;
 }
 

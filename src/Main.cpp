@@ -17,14 +17,13 @@
 
 #define Z_NEAR 0.1f
 #define Z_FAR  10.0f
-#define SCREEN_WIDTH 1024
-#define SCREEN_HEIGHT 768
-#define NUM_OF_STARS 300
+#define SCREEN_WIDTH 360
+#define SCREEN_HEIGHT 640
 
 ////////////////////////////////////////////////////////////
 
 // Global variables
-ssr::Matrix4x4 g_viewMat = ssr::Matrix4x4::identity;
+ssr::Matrix4x4 g_cameraMat = ssr::Matrix4x4::identity;
 ssr::Matrix4x4 g_projectionMat = ssr::Matrix4x4::identity;
 ssr::Matrix4x4 g_viewportMat = ssr::Matrix4x4::identity;
 
@@ -33,12 +32,13 @@ SDL_Texture* g_screenTexture;
 
 ssr::Camera g_camera;
 unsigned int* g_frameBuffer = nullptr;
+bool g_logThisFrame = false;
 
 ////////////////////////////////////////////////////////////
 
 void initMatrices() {
 	// 뷰 행렬
-	ssr::math::setupViewMatrix(g_viewMat, g_camera.m_eye, g_camera.m_at, g_camera.m_up);
+	ssr::math::setupCameraMatrix(g_cameraMat, g_camera.m_eye, g_camera.m_at, g_camera.m_up);
 
 	// 프로젝션 행렬
 	ssr::math::setupPerspectiveProjectionMatrix(g_projectionMat, g_camera.m_fov,
@@ -51,7 +51,7 @@ void initMatrices() {
 
 void transformToScreen(ssr::Vector4& point) {
   // Viewport * Projection * View * Model
-  point = (g_viewportMat * (g_projectionMat * g_viewMat)) * point;
+  point = (g_viewportMat * (g_projectionMat * g_cameraMat)) * point;
 
   // 프로젝션 분할(projectionDevide) 클립좌표계 -> NDC로 변환
   point.perspectiveDivide();
@@ -73,6 +73,7 @@ void handleKeyInput(SDL_Event event)
     g_projectionMat = ssr::Matrix4x4::identity;
     ssr::math::setupPerspectiveProjectionMatrix(
       g_projectionMat, g_camera.m_fov, g_camera.m_aspect, Z_NEAR, Z_FAR);
+    printf("Key Input: SDLK_UP => Camera FOV changed %.1f\n", g_camera.m_fov);
     break;
   }
   case SDLK_DOWN: {
@@ -80,20 +81,27 @@ void handleKeyInput(SDL_Event event)
     g_projectionMat = ssr::Matrix4x4::identity;
     ssr::math::setupPerspectiveProjectionMatrix(
       g_projectionMat, g_camera.m_fov, g_camera.m_aspect, Z_NEAR, Z_FAR);
+    printf("Key Input: SDLK_DOWN => Camera FOV changed %.1f\n", g_camera.m_fov);
     break;
   }
   case SDLK_RIGHT: {
-    g_camera.m_eye.x += 0.01f;
-    g_viewMat = ssr::Matrix4x4::identity;
-    ssr::math::setupViewMatrix(
-      g_viewMat, g_camera.m_eye, g_camera.m_at, g_camera.m_up);
+    //g_camera.m_eye.x += 0.01f;
+    //g_camera.m_eye.y += 0.01f;
+    g_camera.m_eye.z += 0.01f;
+    g_cameraMat = ssr::Matrix4x4::identity;
+    ssr::math::setupCameraMatrix(
+      g_cameraMat, g_camera.m_eye, g_camera.m_at, g_camera.m_up);
+    printf("Key Input: SDLK_RIGHT => Camera position changed %s\n", g_camera.m_eye.toString().c_str());
     break;
   }
   case SDLK_LEFT: {
-    g_camera.m_eye.x -= 0.01f;
-    g_viewMat = ssr::Matrix4x4::identity;
-    ssr::math::setupViewMatrix(
-      g_viewMat, g_camera.m_eye, g_camera.m_at, g_camera.m_up);
+    //g_camera.m_eye.x -= 0.01f;
+    //g_camera.m_eye.y -= 0.01f;
+    g_camera.m_eye.z -= 0.01f;
+    g_cameraMat = ssr::Matrix4x4::identity;
+    ssr::math::setupCameraMatrix(
+      g_cameraMat, g_camera.m_eye, g_camera.m_at, g_camera.m_up);
+    printf("Key Input: SDLK_LEFT => Camera position changed %s\n", g_camera.m_eye.toString().c_str());
     break;
   }
   case SDLK_r: {
@@ -103,13 +111,18 @@ void handleKeyInput(SDL_Event event)
       g_projectionMat, g_camera.m_fov, g_camera.m_aspect, Z_NEAR, Z_FAR);
 
     g_camera.m_eye.x = 0.0f;
-    g_viewMat = ssr::Matrix4x4::identity;
-    ssr::math::setupViewMatrix(
-      g_viewMat, g_camera.m_eye, g_camera.m_at, g_camera.m_up);
+    g_camera.m_eye.y = 0.0f;
+    g_camera.m_eye.z = 0.0f;
+    g_cameraMat = ssr::Matrix4x4::identity;
+    ssr::math::setupCameraMatrix(
+      g_cameraMat, g_camera.m_eye, g_camera.m_at, g_camera.m_up);
+
+    printf("Key Input: SDLK_r => Camera settings set to default\n");
     break;
   }
   default: break;
   }
+  g_logThisFrame = true;
 }
 
 ////////////////////////////////////////////////////////////
@@ -120,9 +133,9 @@ ssr::Matrix4x4 g_vertsMat = ssr::Matrix4x4::identity;
 float g_triangleRotationRadian = 0.0f;
 
 void initVertices() {
-  g_vertices[0] = { -0.2f, +0.2f, +0.0f };
-  g_vertices[1] = { +0.2f, +0.2f, +0.0f };
-  g_vertices[2] = { +0.0f, -0.2f, +0.0f };
+  g_vertices[0] = { -0.2f, -0.2f, +0.0f };
+  g_vertices[1] = { +0.2f, -0.2f, +0.0f };
+  g_vertices[2] = { +0.0f, +0.2f, +0.0f };
 }
 
 // #1 Bresenham's line algorithm
@@ -194,11 +207,16 @@ void drawLineWithBresenhamAlgorithm(const ssr::Vector2& startPos, const ssr::Vec
 void renderTriangleLines() {
   // 회전 행렬 적용
   ssr::Matrix4x4 rotationMat = ssr::Matrix4x4::identity;
-  g_triangleRotationRadian += 0.7f;
-  rotationMat.rotateY(g_triangleRotationRadian);
+  //g_triangleRotationRadian += 0.7f;
+  //rotationMat.rotateY(g_triangleRotationRadian);
 
   ssr::Vector3 tri[3];
-  ssr::Matrix4x4 transformMat = (g_viewportMat * (g_projectionMat * g_viewMat));
+  ssr::Matrix4x4 transformMat = (g_viewportMat * (g_projectionMat * g_cameraMat));
+  if (g_logThisFrame) {
+    g_cameraMat.print();
+    g_projectionMat.print();
+    g_viewportMat.print();
+  }
   
   // 화면 좌표계로 변환
   for (int i = 0; i < 3; ++i) {
@@ -207,6 +225,9 @@ void renderTriangleLines() {
     temp = transformMat * temp;
     temp.perspectiveDivide();
     tri[i].x = temp.x, tri[i].y = temp.y, tri[i].z = temp.z;
+    if (g_logThisFrame) {
+      printf("%d => %s\n", i, tri[i].toString().c_str());
+    }
   }
 
   // 주어진 세 개의 정점으로 픽셀에 선분 그리기 시도 여기서부턴 2D 선분 그리기와 동일
@@ -214,6 +235,8 @@ void renderTriangleLines() {
   drawLineWithBresenhamAlgorithm({ tri[0].x, tri[0].y }, { tri[1].x, tri[1].y }, whiteColor);
   drawLineWithBresenhamAlgorithm({ tri[1].x, tri[1].y }, { tri[2].x, tri[2].y }, whiteColor);
   drawLineWithBresenhamAlgorithm({ tri[0].x, tri[0].y }, { tri[2].x, tri[2].y }, whiteColor);
+
+  g_logThisFrame = false;
 }
 
 ////////////////////////////////////////////////////////////

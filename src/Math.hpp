@@ -10,6 +10,7 @@
 #include <vector>
 #include <cstdlib>
 #include <cmath>
+#include <string>
 
 namespace ssr {
 
@@ -54,6 +55,8 @@ struct Vector3 {
   /// @brief 각 값을 정규화
   /// @return 정규화된 벡터 반환
   Vector3 normalize() const;
+
+  std::string toString() const;
 };
 
 namespace math {
@@ -178,7 +181,7 @@ namespace math {
  * https://arienbv.org/blog/2017/07/30/breakdown-of-the-lookAt-function-in-OpenGL/
  * @return Matrix4x4 
  */
-void setupViewMatrix(Matrix4x4& out, const Vector3& eye, const Vector3& at, const Vector3& up);
+void setupCameraMatrix(Matrix4x4& out, const Vector3& eye, const Vector3& at, const Vector3& up);
 
 /**
  * @brief 원근 투영 프러스텀 매트릭스 반환
