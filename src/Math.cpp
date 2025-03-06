@@ -485,7 +485,8 @@ void setupPerspectiveProjectionMatrix(Matrix4x4& out, float fovY, float aspect, 
   float tangent = tan(fovY/2 * DEG2RAD);
 
   // near 평면의 절반 높이 및 너비
-  float top = near * tangent, right = top * aspect;
+  float top = near * tangent;
+  float right = top * aspect;
   
   /*
   * Using Vertical FOV
@@ -504,29 +505,28 @@ void setupPerspectiveProjectionMatrix(Matrix4x4& out, float fovY, float aspect, 
   out.m11 = near / right;
   out.m22 = near / top;
   out.m33 = -(far + near) / (far - near);
-  out.m34 = -(2 * far * near) / (far - near);
-  out.m43 = -1.0f;
+  out.m34 = -1.0f;
+  out.m43 = -(2 * far * near) / (far - near);
   out.m44 = 0.0f;
 }
 
-void setupViewportMatrix(Matrix4x4& out, float x, float y, float w, float h) {
+void setupViewportMatrix(Matrix4x4& out, float x, float y, float w, float h, float near, float far) {
   /*
   * https://www.songho.ca/opengl/gl_viewport.html
-  +-----------------+ +-----------------+
-  | m11  0   0  m14 | | w/2  0   0   0  |
-  |  0  m22  0  m24 | |  0  h/2  0   0  |
-  |  0   0  m33 m34 | |  0   0  m33 m34 |
-  |  0   0   0   1  | |  0   0  m43  1  |
-  +-----------------+ +-----------------+
+  +-----------------+ +----------------------+
+  | m11  0   0  m14 | | w/2  0    0    x+w/2 |
+  |  0  m22  0  m24 | |  0  h/2   0    y+h/2 |
+  |  0   0  m33 m34 | |  0   0  f-n/2  f+n/2 |
+  |  0   0  m43 m44 | |  0   0    0      1   |
+  +-----------------+ +----------------------+
   */
   out.m11 = w / 2;
-  out.m14 = x + w / 2;
+  out.m14 = ((x + w) / 2);
   out.m22 = h / 2;
-  out.m24 = y + h / 2;
-  //out.m33 = 0.5f; // 0.1 - 10 / 2
-  //out.m34 = 0.5f; // 0.1 + 10 / 2
-  out.m33 = (0.1f - 10.0f) / 2; // 0.1 - 10 / 2
-  out.m34 = (0.1f + 10.0f) / 2; // 0.1 + 10 / 2
+  out.m24 = ((y + h) / 2);
+  out.m33 = (far - near) / 2;
+  out.m34 = (far + near) / 2;
+  out.m43 = 0.0f;
   out.m44 = 1.0f;
 }
 

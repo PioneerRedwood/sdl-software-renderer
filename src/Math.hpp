@@ -193,7 +193,7 @@ void setupPerspectiveProjectionMatrix(Matrix4x4& out, float fovY, float aspect, 
 // https://www.songho.ca/opengl/gl_transform.html
 // https://www.songho.ca/opengl/gl_viewport.html
 // near, far는 기본값 각각 0, 1 사용
-void setupViewportMatrix(Matrix4x4& out, float x, float y, float w, float h);
+void setupViewportMatrix(Matrix4x4& out, float x, float y, float w, float h, float near, float far);
 
 } // namespace math
 

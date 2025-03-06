@@ -20,7 +20,7 @@
 #define SCREEN_WIDTH 360
 #define SCREEN_HEIGHT 640
 
-////////////////////////////////////////////////////////////
+#pragma mark Global Variables
 
 // Global variables
 ssr::Matrix4x4 g_cameraMat = ssr::Matrix4x4::identity;
@@ -34,8 +34,6 @@ ssr::Camera g_camera;
 unsigned int* g_frameBuffer = nullptr;
 bool g_logThisFrame = false;
 
-////////////////////////////////////////////////////////////
-
 void initMatrices() {
 	// 뷰 행렬
 	ssr::math::setupCameraMatrix(g_cameraMat, g_camera.m_eye, g_camera.m_at, g_camera.m_up);
@@ -45,8 +43,8 @@ void initMatrices() {
 		g_camera.m_aspect, Z_NEAR, Z_FAR);
 
 	// 뷰포트 행렬
-	ssr::math::setupViewportMatrix(g_viewportMat, 0, 0, 
-    (float)g_program->width(), (float)g_program->height());
+	ssr::math::setupViewportMatrix(g_viewportMat, 0, 0,
+    (float)g_program->width(), (float)g_program->height(), Z_NEAR, Z_FAR);
 }
 
 void transformToScreen(ssr::Vector4& point) {
@@ -55,13 +53,6 @@ void transformToScreen(ssr::Vector4& point) {
 
   // 프로젝션 분할(projectionDevide) 클립좌표계 -> NDC로 변환
   point.perspectiveDivide();
-}
-
-void drawPoint(int x, int y, int color) {
-  if(x > SCREEN_WIDTH || x < 0) return;
-  if(y > SCREEN_HEIGHT || y < 0) return;
-
-  g_frameBuffer[x + y * SCREEN_WIDTH] = color;
 }
 
 void handleKeyInput(SDL_Event event)
@@ -105,14 +96,14 @@ void handleKeyInput(SDL_Event event)
     break;
   }
   case SDLK_r: {
-    g_camera.m_fov = 45.0f;
+    g_camera.m_fov = 90.0f;
     g_projectionMat = ssr::Matrix4x4::identity;
     ssr::math::setupPerspectiveProjectionMatrix(
       g_projectionMat, g_camera.m_fov, g_camera.m_aspect, Z_NEAR, Z_FAR);
 
     g_camera.m_eye.x = 0.0f;
     g_camera.m_eye.y = 0.0f;
-    g_camera.m_eye.z = 0.0f;
+    g_camera.m_eye.z = -1.0f;
     g_cameraMat = ssr::Matrix4x4::identity;
     ssr::math::setupCameraMatrix(
       g_cameraMat, g_camera.m_eye, g_camera.m_at, g_camera.m_up);
@@ -125,7 +116,7 @@ void handleKeyInput(SDL_Event event)
   g_logThisFrame = true;
 }
 
-////////////////////////////////////////////////////////////
+#pragma mark Game Logic
 
 // 삼각형 정점
 ssr::Vector3 g_vertices[3];
@@ -133,9 +124,19 @@ ssr::Matrix4x4 g_vertsMat = ssr::Matrix4x4::identity;
 float g_triangleRotationRadian = 0.0f;
 
 void initVertices() {
-  g_vertices[0] = { -0.2f, -0.2f, +0.0f };
-  g_vertices[1] = { +0.2f, -0.2f, +0.0f };
-  g_vertices[2] = { +0.0f, +0.2f, +0.0f };
+//  g_vertices[0] = { -0.2f, -0.2f, +0.0f };
+//  g_vertices[1] = { +0.2f, -0.2f, +0.0f };
+//  g_vertices[2] = { +0.0f, +0.2f, +0.0f };
+  g_vertices[0] = { -1.0f, -1.0f, +0.0f };
+  g_vertices[1] = { +1.0f, -1.0f, +0.0f };
+  g_vertices[2] = { +0.0f, +1.0f, +0.0f };
+}
+
+void drawPoint(int x, int y, int color) {
+  if(x > SCREEN_WIDTH || x < 0) return;
+  if(y > SCREEN_HEIGHT || y < 0) return;
+
+  g_frameBuffer[x + y * SCREEN_WIDTH] = color;
 }
 
 // #1 Bresenham's line algorithm
@@ -160,7 +161,7 @@ void drawLineWithBresenhamAlgorithm(const ssr::Vector2& startPos, const ssr::Vec
       else {
         d = d + 2 * dy;
       }
-    }
+   }
   };
 
   auto drawHigh = [](int x0, int y0, int x1, int y1, int color) {
@@ -205,12 +206,13 @@ void drawLineWithBresenhamAlgorithm(const ssr::Vector2& startPos, const ssr::Vec
 
 // 주어진 세 개의 3D 정점으로 이루어진 삼각형을 그리기
 void renderTriangleLines() {
+  ssr::Vector3 tri[3];
+#if 0
   // 회전 행렬 적용
   ssr::Matrix4x4 rotationMat = ssr::Matrix4x4::identity;
   //g_triangleRotationRadian += 0.7f;
   //rotationMat.rotateY(g_triangleRotationRadian);
 
-  ssr::Vector3 tri[3];
   ssr::Matrix4x4 transformMat = (g_viewportMat * (g_projectionMat * g_cameraMat));
   if (g_logThisFrame) {
     g_cameraMat.print();
@@ -229,7 +231,15 @@ void renderTriangleLines() {
       printf("%d => %s\n", i, tri[i].toString().c_str());
     }
   }
-
+#else
+  for(int i = 0; i < 3; ++i) {
+    ssr::Vector4 v = { g_vertices[i].x, g_vertices[i].y, g_vertices[i].z, 1.0f };
+    // 여기서 좌표에다가 카메라 변환 행렬 적용 -> 프로젝션 변환 행렬 적용 -> 뷰포트 변환 행렬 적용 -> 차원 감소
+    v = (g_viewportMat * (g_projectionMat * (g_cameraMat * v)));
+    v.perspectiveDivide();
+    tri[i].x = v.x, tri[i].y = v.y, tri[i].z = v.z;
+  }
+#endif
   // 주어진 세 개의 정점으로 픽셀에 선분 그리기 시도 여기서부턴 2D 선분 그리기와 동일
   static const int whiteColor = 0xFFFFFFFF;
   drawLineWithBresenhamAlgorithm({ tri[0].x, tri[0].y }, { tri[1].x, tri[1].y }, whiteColor);
@@ -239,7 +249,7 @@ void renderTriangleLines() {
   g_logThisFrame = false;
 }
 
-////////////////////////////////////////////////////////////
+#pragma mark Main func
 
 int main(int argc, char **argv)
 {
@@ -263,7 +273,7 @@ int main(int argc, char **argv)
   
   // 카메라 설정
   g_camera.m_aspect = (float)g_program->width() / g_program->height();
-  g_camera.m_fov = 45.0f;
+  g_camera.m_fov = 90.0f;
 
   // 매트릭스 초기화
   initMatrices();

@@ -16,8 +16,8 @@ public:
   float m_aspect = 0.0f;
   float m_fov = 0.0f;
 
-  Vector3 m_eye = { 0.0f, 0.0f, 0.0f };
-  Vector3 m_at = { 0.0f, 0.0f, 1.0f };
+  Vector3 m_eye = { 0.0f, 0.0f, -1.0f };
+  Vector3 m_at = { 0.0f, 0.0f, 0.0f };
   Vector3 m_up = { 0.0f, 1.0f, 0.0f };
 };
 
