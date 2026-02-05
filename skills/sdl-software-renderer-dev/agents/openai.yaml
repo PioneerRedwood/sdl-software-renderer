@@ -1,0 +1,4 @@
+interface:
+  display_name: "SDL Software Renderer Dev"
+  short_description: "SDL software renderer dev workflows"
+  default_prompt: "Use -software-renderer-dev to update docs and CMake for this repo."

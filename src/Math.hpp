@@ -126,9 +126,10 @@ struct Matrix4x4 {
   | m31 m32 m33 m34 |   | x.z y.z z.z w.z |
   | m41 m42 m43 m44 |   | x.w y.w z.w w.w |
   +-----------------+   +-----------------+
-  - (m11, m21, m31): X축, 왼쪽 벡터 (left)
+  - (m11, m21, m31): X축, 오른쪽 벡터 (right)
   - (m12, m22, m32): Y축, 위쪽 벡터 (up)
-  - (m14, m24, m34): Z축, 앞쪽 벡터 (forward)
+  - (m13, m23, m33): Z축, 앞쪽 벡터 (forward)
+  - (m41, m42, m43): 이동(translation)
   */
   Matrix4x4(Vector4 x, Vector4 y, Vector4 z, Vector4 w);
   Matrix4x4(const Vector4&, const Vector4&, const Vector4&, const Vector4&);

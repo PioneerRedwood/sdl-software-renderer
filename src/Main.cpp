@@ -10,6 +10,7 @@
 #include <cstdlib>
 #include <iostream>
 #include <memory>
+#include <cstring>
 
 #include "SDLProgram.hpp"
 #include "Math.hpp"
@@ -34,7 +35,13 @@ ssr::Camera g_camera;
 unsigned int* g_frameBuffer = nullptr;
 bool g_logThisFrame = false;
 
-void initMatrices() {
+bool isSimTestEnabled() {
+  const char* env = std::getenv("SSR_SIM_TEST");
+  return env != nullptr &&
+         (strcmp(env, "1") == 0 || strcmp(env, "true") == 0 || strcmp(env, "TRUE") == 0);
+}
+
+void initMatrices(float width, float height) {
 	// 뷰 행렬
 	ssr::math::setupCameraMatrix(g_cameraMat, g_camera.m_eye, g_camera.m_at, g_camera.m_up);
 
@@ -44,15 +51,18 @@ void initMatrices() {
 
 	// 뷰포트 행렬
 	ssr::math::setupViewportMatrix(g_viewportMat, 0, 0,
-    (float)g_program->width(), (float)g_program->height(), Z_NEAR, Z_FAR);
+    width, height, Z_NEAR, Z_FAR);
 }
 
 void transformToScreen(ssr::Vector4& point) {
-  // Viewport * Projection * View * Model
-  point = (g_viewportMat * (g_projectionMat * g_cameraMat)) * point;
+  // View * Projection
+  point = (g_projectionMat * (g_cameraMat * point));
 
   // 프로젝션 분할(projectionDevide) 클립좌표계 -> NDC로 변환
   point.perspectiveDivide();
+
+  // Viewport 변환
+  point = g_viewportMat * point;
 }
 
 void handleKeyInput(SDL_Event event)
@@ -76,9 +86,7 @@ void handleKeyInput(SDL_Event event)
     break;
   }
   case SDLK_RIGHT: {
-    //g_camera.m_eye.x += 0.01f;
-    //g_camera.m_eye.y += 0.01f;
-    g_camera.m_eye.z += 0.01f;
+    g_camera.m_eye.x += 0.1f;
     g_cameraMat = ssr::Matrix4x4::identity;
     ssr::math::setupCameraMatrix(
       g_cameraMat, g_camera.m_eye, g_camera.m_at, g_camera.m_up);
@@ -86,9 +94,7 @@ void handleKeyInput(SDL_Event event)
     break;
   }
   case SDLK_LEFT: {
-    //g_camera.m_eye.x -= 0.01f;
-    //g_camera.m_eye.y -= 0.01f;
-    g_camera.m_eye.z -= 0.01f;
+    g_camera.m_eye.x -= 0.1f;
     g_cameraMat = ssr::Matrix4x4::identity;
     ssr::math::setupCameraMatrix(
       g_cameraMat, g_camera.m_eye, g_camera.m_at, g_camera.m_up);
@@ -96,14 +102,17 @@ void handleKeyInput(SDL_Event event)
     break;
   }
   case SDLK_r: {
-    g_camera.m_fov = 90.0f;
+    g_camera.m_fov = 45.0f;
     g_projectionMat = ssr::Matrix4x4::identity;
     ssr::math::setupPerspectiveProjectionMatrix(
       g_projectionMat, g_camera.m_fov, g_camera.m_aspect, Z_NEAR, Z_FAR);
 
     g_camera.m_eye.x = 0.0f;
     g_camera.m_eye.y = 0.0f;
-    g_camera.m_eye.z = -1.0f;
+    g_camera.m_eye.z = -5.0f;
+    g_camera.m_at.x = 0.0f;
+    g_camera.m_at.y = 0.0f;
+    g_camera.m_at.z = 1.0f;
     g_cameraMat = ssr::Matrix4x4::identity;
     ssr::math::setupCameraMatrix(
       g_cameraMat, g_camera.m_eye, g_camera.m_at, g_camera.m_up);
@@ -123,13 +132,50 @@ ssr::Vector3 g_vertices[3];
 ssr::Matrix4x4 g_vertsMat = ssr::Matrix4x4::identity;
 float g_triangleRotationRadian = 0.0f;
 
+void simulateInputForFrame(int frame) {
+  SDL_Event event{};
+  event.type = SDL_KEYDOWN;
+
+  switch (frame) {
+  case 1:
+    event.key.keysym.sym = SDLK_RIGHT;
+    handleKeyInput(event);
+    break;
+  case 2:
+    event.key.keysym.sym = SDLK_LEFT;
+    handleKeyInput(event);
+    break;
+  case 3:
+    event.key.keysym.sym = SDLK_UP;
+    handleKeyInput(event);
+    break;
+  case 4:
+    event.key.keysym.sym = SDLK_DOWN;
+    handleKeyInput(event);
+    break;
+  default:
+    break;
+  }
+}
+
+void logFrameState(int frame) {
+  printf("[SIM] frame=%d eye=%s at=%s fov=%.2f\n",
+         frame, g_camera.m_eye.toString().c_str(), g_camera.m_at.toString().c_str(), g_camera.m_fov);
+
+  for (int i = 0; i < 3; ++i) {
+    ssr::Vector4 v = { g_vertices[i].x, g_vertices[i].y, g_vertices[i].z, 1.0f };
+    v = (g_projectionMat * (g_cameraMat * v));
+    v.perspectiveDivide();
+    v = g_viewportMat * v;
+    printf("[SIM] v%d world=%s screen=(%.2f, %.2f, %.2f)\n",
+           i, g_vertices[i].toString().c_str(), v.x, v.y, v.z);
+  }
+}
+
 void initVertices() {
-//  g_vertices[0] = { -0.2f, -0.2f, +0.0f };
-//  g_vertices[1] = { +0.2f, -0.2f, +0.0f };
-//  g_vertices[2] = { +0.0f, +0.2f, +0.0f };
-  g_vertices[0] = { -1.0f, -1.0f, +0.0f };
-  g_vertices[1] = { +1.0f, -1.0f, +0.0f };
-  g_vertices[2] = { +0.0f, +1.0f, +0.0f };
+  g_vertices[0] = { -1.0f, +1.0f, +0.0f };
+  g_vertices[1] = { +1.0f, +1.0f, +0.0f };
+  g_vertices[2] = { +0.0f, -1.0f, +0.0f };
 }
 
 void drawPoint(int x, int y, int color) {
@@ -213,7 +259,7 @@ void renderTriangleLines() {
   //g_triangleRotationRadian += 0.7f;
   //rotationMat.rotateY(g_triangleRotationRadian);
 
-  ssr::Matrix4x4 transformMat = (g_viewportMat * (g_projectionMat * g_cameraMat));
+  ssr::Matrix4x4 transformMat = (g_cameraMat * g_projectionMat);
   if (g_logThisFrame) {
     g_cameraMat.print();
     g_projectionMat.print();
@@ -226,6 +272,7 @@ void renderTriangleLines() {
     ssr::Vector4 temp = { tri[i].x, tri[i].y, tri[i].z, 1.0f };
     temp = transformMat * temp;
     temp.perspectiveDivide();
+    temp = g_viewportMat * temp;
     tri[i].x = temp.x, tri[i].y = temp.y, tri[i].z = temp.z;
     if (g_logThisFrame) {
       printf("%d => %s\n", i, tri[i].toString().c_str());
@@ -234,9 +281,10 @@ void renderTriangleLines() {
 #else
   for(int i = 0; i < 3; ++i) {
     ssr::Vector4 v = { g_vertices[i].x, g_vertices[i].y, g_vertices[i].z, 1.0f };
-    // 여기서 좌표에다가 카메라 변환 행렬 적용 -> 프로젝션 변환 행렬 적용 -> 뷰포트 변환 행렬 적용 -> 차원 감소
-    v = (g_viewportMat * (g_projectionMat * (g_cameraMat * v)));
+    // 여기서 좌표에다가 카메라 변환 행렬 적용 -> 프로젝션 변환 행렬 적용 -> 프로젝션 분할 -> 뷰포트 변환
+    v = (g_projectionMat * (g_cameraMat * v));
     v.perspectiveDivide();
+    v = g_viewportMat * v;
     tri[i].x = v.x, tri[i].y = v.y, tri[i].z = v.z;
   }
 #endif
@@ -254,6 +302,24 @@ void renderTriangleLines() {
 int main(int argc, char **argv)
 {
   srand((unsigned)time(nullptr));
+
+  const bool sim_test = isSimTestEnabled();
+  const int sim_total_frames = 5;
+
+  if (sim_test) {
+    g_camera.m_aspect = (float)SCREEN_WIDTH / SCREEN_HEIGHT;
+    g_camera.m_fov = 45.0f;
+    g_camera.m_eye = { 0.0f, 0.0f, -5.0f };
+    g_camera.m_at = { 0.0f, 0.0f, 1.0f };
+    initMatrices((float)SCREEN_WIDTH, (float)SCREEN_HEIGHT);
+    initVertices();
+
+    for (int frame = 0; frame < sim_total_frames; ++frame) {
+      simulateInputForFrame(frame);
+      logFrameState(frame);
+    }
+    return 0;
+  }
 
   g_program = ssr::SDLProgram::instance();
   if (g_program->init(400, 0, SCREEN_WIDTH, SCREEN_HEIGHT) == false) {
@@ -273,10 +339,10 @@ int main(int argc, char **argv)
   
   // 카메라 설정
   g_camera.m_aspect = (float)g_program->width() / g_program->height();
-  g_camera.m_fov = 90.0f;
+  g_camera.m_fov = 45.0f;
 
   // 매트릭스 초기화
-  initMatrices();
+  initMatrices((float)g_program->width(), (float)g_program->height());
 
   initVertices();
 
