@@ -11,6 +11,8 @@
 #include <iostream>
 #include <memory>
 #include <cstring>
+#include <vector>
+#include <cstdint>
 
 #include "SDLProgram.hpp"
 #include "Math.hpp"
@@ -127,10 +129,15 @@ void handleKeyInput(SDL_Event event)
 
 #pragma mark Game Logic
 
-// 삼각형 정점
-ssr::Vector3 g_vertices[3];
-ssr::Matrix4x4 g_vertsMat = ssr::Matrix4x4::identity;
-float g_triangleRotationRadian = 0.0f;
+struct SimpleMesh {
+  std::vector<ssr::Vector3> vertices;
+  std::vector<uint32_t> indices;
+};
+
+SimpleMesh g_mesh;
+std::vector<ssr::Vector3> g_transformedVerts;
+float g_meshRotationDeg = 0.0f;
+const float g_meshRotationSpeedDegPerSec = 25.0f;
 
 void simulateInputForFrame(int frame) {
   SDL_Event event{};
@@ -162,20 +169,41 @@ void logFrameState(int frame) {
   printf("[SIM] frame=%d eye=%s at=%s fov=%.2f\n",
          frame, g_camera.m_eye.toString().c_str(), g_camera.m_at.toString().c_str(), g_camera.m_fov);
 
-  for (int i = 0; i < 3; ++i) {
-    ssr::Vector4 v = { g_vertices[i].x, g_vertices[i].y, g_vertices[i].z, 1.0f };
+  size_t verticesToLog = g_mesh.vertices.size();
+  if (verticesToLog > 4) {
+    verticesToLog = 4;
+  }
+  for (size_t i = 0; i < verticesToLog; ++i) {
+    ssr::Vector4 v = { g_mesh.vertices[i].x, g_mesh.vertices[i].y, g_mesh.vertices[i].z, 1.0f };
     v = (g_projectionMat * (g_cameraMat * v));
     v.perspectiveDivide();
     v = g_viewportMat * v;
-    printf("[SIM] v%d world=%s screen=(%.2f, %.2f, %.2f)\n",
-           i, g_vertices[i].toString().c_str(), v.x, v.y, v.z);
+    printf("[SIM] v%zu world=%s screen=(%.2f, %.2f, %.2f)\n",
+           i, g_mesh.vertices[i].toString().c_str(), v.x, v.y, v.z);
   }
 }
 
-void initVertices() {
-  g_vertices[0] = { -1.0f, +1.0f, +0.0f };
-  g_vertices[1] = { +1.0f, +1.0f, +0.0f };
-  g_vertices[2] = { +0.0f, -1.0f, +0.0f };
+SimpleMesh createTetrahedronMesh() {
+  SimpleMesh mesh;
+  mesh.vertices = {
+    { 0.0f,  1.0f,  0.0f },
+    { -1.0f, -1.0f,  1.0f },
+    { 1.0f, -1.0f,  1.0f },
+    { 0.0f, -1.0f, -1.5f },
+  };
+
+  mesh.indices = {
+    0, 1, 2,
+    0, 2, 3,
+    0, 3, 1,
+    1, 3, 2
+  };
+  return mesh;
+}
+
+void initMesh() {
+  g_mesh = createTetrahedronMesh();
+  g_transformedVerts.resize(g_mesh.vertices.size());
 }
 
 void drawPoint(int x, int y, int color) {
@@ -251,48 +279,52 @@ void drawLineWithBresenhamAlgorithm(const ssr::Vector2& startPos, const ssr::Vec
 }
 
 // 주어진 세 개의 3D 정점으로 이루어진 삼각형을 그리기
-void renderTriangleLines() {
-  ssr::Vector3 tri[3];
-#if 0
-  // 회전 행렬 적용
-  ssr::Matrix4x4 rotationMat = ssr::Matrix4x4::identity;
-  //g_triangleRotationRadian += 0.7f;
-  //rotationMat.rotateY(g_triangleRotationRadian);
-
-  ssr::Matrix4x4 transformMat = (g_cameraMat * g_projectionMat);
-  if (g_logThisFrame) {
-    g_cameraMat.print();
-    g_projectionMat.print();
-    g_viewportMat.print();
+void renderMeshWireframe(double deltaMs) {
+  if (g_mesh.vertices.empty() || g_mesh.indices.empty()) {
+    g_logThisFrame = false;
+    return;
   }
-  
-  // 화면 좌표계로 변환
-  for (int i = 0; i < 3; ++i) {
-    tri[i] = rotationMat * g_vertices[i];
-    ssr::Vector4 temp = { tri[i].x, tri[i].y, tri[i].z, 1.0f };
-    temp = transformMat * temp;
-    temp.perspectiveDivide();
-    temp = g_viewportMat * temp;
-    tri[i].x = temp.x, tri[i].y = temp.y, tri[i].z = temp.z;
-    if (g_logThisFrame) {
-      printf("%d => %s\n", i, tri[i].toString().c_str());
+
+  if (g_transformedVerts.size() != g_mesh.vertices.size()) {
+    g_transformedVerts.resize(g_mesh.vertices.size());
+  }
+
+  const float deltaSeconds = static_cast<float>(deltaMs) * 0.001f;
+  if (deltaSeconds > 0.0f) {
+    g_meshRotationDeg += g_meshRotationSpeedDegPerSec * deltaSeconds;
+    if (g_meshRotationDeg >= 360.0f) {
+      g_meshRotationDeg -= 360.0f;
     }
   }
-#else
-  for(int i = 0; i < 3; ++i) {
-    ssr::Vector4 v = { g_vertices[i].x, g_vertices[i].y, g_vertices[i].z, 1.0f };
-    // 여기서 좌표에다가 카메라 변환 행렬 적용 -> 프로젝션 변환 행렬 적용 -> 프로젝션 분할 -> 뷰포트 변환
+
+  ssr::Matrix4x4 modelMat = ssr::Matrix4x4::identity;
+  modelMat.rotateY(g_meshRotationDeg);
+
+  for (size_t i = 0; i < g_mesh.vertices.size(); ++i) {
+    ssr::Vector4 v = { g_mesh.vertices[i].x, g_mesh.vertices[i].y, g_mesh.vertices[i].z, 1.0f };
+    v = modelMat * v;
     v = (g_projectionMat * (g_cameraMat * v));
     v.perspectiveDivide();
     v = g_viewportMat * v;
-    tri[i].x = v.x, tri[i].y = v.y, tri[i].z = v.z;
+    g_transformedVerts[i].x = v.x;
+    g_transformedVerts[i].y = v.y;
+    g_transformedVerts[i].z = v.z;
+
+    if (g_logThisFrame && i < 4) {
+      printf("screen v%zu => %s\n", i, g_transformedVerts[i].toString().c_str());
+    }
   }
-#endif
-  // 주어진 세 개의 정점으로 픽셀에 선분 그리기 시도 여기서부턴 2D 선분 그리기와 동일
+
   static const int whiteColor = 0xFFFFFFFF;
-  drawLineWithBresenhamAlgorithm({ tri[0].x, tri[0].y }, { tri[1].x, tri[1].y }, whiteColor);
-  drawLineWithBresenhamAlgorithm({ tri[1].x, tri[1].y }, { tri[2].x, tri[2].y }, whiteColor);
-  drawLineWithBresenhamAlgorithm({ tri[0].x, tri[0].y }, { tri[2].x, tri[2].y }, whiteColor);
+  for (size_t idx = 0; idx + 2 < g_mesh.indices.size(); idx += 3) {
+    const ssr::Vector3& v0 = g_transformedVerts[g_mesh.indices[idx]];
+    const ssr::Vector3& v1 = g_transformedVerts[g_mesh.indices[idx + 1]];
+    const ssr::Vector3& v2 = g_transformedVerts[g_mesh.indices[idx + 2]];
+
+    drawLineWithBresenhamAlgorithm({ v0.x, v0.y }, { v1.x, v1.y }, whiteColor);
+    drawLineWithBresenhamAlgorithm({ v1.x, v1.y }, { v2.x, v2.y }, whiteColor);
+    drawLineWithBresenhamAlgorithm({ v0.x, v0.y }, { v2.x, v2.y }, whiteColor);
+  }
 
   g_logThisFrame = false;
 }
@@ -312,7 +344,7 @@ int main(int argc, char **argv)
     g_camera.m_eye = { 0.0f, 0.0f, -5.0f };
     g_camera.m_at = { 0.0f, 0.0f, 1.0f };
     initMatrices((float)SCREEN_WIDTH, (float)SCREEN_HEIGHT);
-    initVertices();
+    initMesh();
 
     for (int frame = 0; frame < sim_total_frames; ++frame) {
       simulateInputForFrame(frame);
@@ -344,7 +376,7 @@ int main(int argc, char **argv)
   // 매트릭스 초기화
   initMatrices((float)g_program->width(), (float)g_program->height());
 
-  initVertices();
+  initMesh();
 
   // Main loop
   g_program->updateTime();
@@ -379,7 +411,7 @@ int main(int argc, char **argv)
     // Update rendering objects
     memset((char*)g_frameBuffer, 0, sizeof(int) * SCREEN_WIDTH * SCREEN_HEIGHT);
 
-    renderTriangleLines();
+    renderMeshWireframe(g_program->delta());
 
     SDL_UpdateTexture(g_screenTexture, nullptr, g_frameBuffer, SCREEN_WIDTH * 4);
     SDL_RenderCopy(renderer.native(), g_screenTexture, nullptr, nullptr);
