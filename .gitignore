@@ -50,3 +50,4 @@ artifacts/
 # 기본적인 macOS, Windows 임시 파일
 .DS_Store
 Thumbs.db
+build-*/
