@@ -196,6 +196,9 @@ void setupPerspectiveProjectionMatrix(Matrix4x4& out, float fovY, float aspect, 
 // near, far는 기본값 각각 0, 1 사용
 void setupViewportMatrix(Matrix4x4& out, float x, float y, float w, float h, float near, float far);
 
+uint32_t lerpColor(uint32_t from, uint32_t to, float t);
+
+
 } // namespace math
 
 } // namespace ssr

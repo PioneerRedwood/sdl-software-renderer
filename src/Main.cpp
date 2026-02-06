@@ -13,6 +13,8 @@
 #include <cstring>
 #include <vector>
 #include <cstdint>
+#include <algorithm>
+#include <cmath>
 
 #include "SDLProgram.hpp"
 #include "Math.hpp"
@@ -56,6 +58,11 @@ void initMatrices(float width, float height) {
     width, height, Z_NEAR, Z_FAR);
 }
 
+// 계산 순서:
+// 1. 정점 좌표와 카메라 좌표 행렬 곱 -> 카메라 기준으로 좌표계 이동
+// 2. 프로젝션 행렬 곱 -> 2차원 좌표를 3차원에 투영하는 과정
+// 3. 차원 감소 -> 3차원에서 2차원으로 동차좌표계 (NDC 노말 디바이스 좌표계로 변환)
+// 4. 뷰포트 적용
 void transformToScreen(ssr::Vector4& point) {
   // View * Projection
   point = (g_projectionMat * (g_cameraMat * point));
@@ -129,15 +136,39 @@ void handleKeyInput(SDL_Event event)
 
 #pragma mark Game Logic
 
+const int TEX_W = 256, TEX_H = 256;
 struct SimpleMesh {
   std::vector<ssr::Vector3> vertices;
   std::vector<uint32_t> indices;
+  std::vector<ssr::Vector2> uvs;
+  std::vector<uint32_t> texture;
 };
 
 SimpleMesh g_mesh;
 std::vector<ssr::Vector3> g_transformedVerts;
 float g_meshRotationDeg = 0.0f;
 const float g_meshRotationSpeedDegPerSec = 25.0f;
+
+void drawPoint(int x, int y, int color) {
+  if (x > SCREEN_WIDTH || x < 0) return;
+  if (y > SCREEN_HEIGHT || y < 0) return;
+
+  g_frameBuffer[x + y * SCREEN_WIDTH] = color;
+}
+
+std::vector<uint32_t> createProceduralTexture() {
+  std::vector<uint32_t> texture(TEX_W * TEX_H);
+  const uint32_t bottom = 0xFF4A2F1F;
+  const uint32_t top = 0xFFFAD89B;
+  for (int y = 0; y < TEX_H; ++y) {
+    float v = (float)y / (TEX_H - 1);
+    uint32_t color = ssr::math::lerpColor(bottom, top, v);
+    for (int x = 0; x < TEX_W; ++x) {
+      texture[x + y * TEX_W] = color;
+    }
+  }
+  return texture;
+}
 
 void simulateInputForFrame(int frame) {
   SDL_Event event{};
@@ -162,6 +193,71 @@ void simulateInputForFrame(int frame) {
     break;
   default:
     break;
+  }
+}
+
+static float edgeFunction(const ssr::Vector2& a, const ssr::Vector2& b, float x, float y) {
+  return (x - a.x) * (b.y - a.y) - (y - a.y) * (b.x - a.x);
+}
+
+static uint32_t sampleTexture(const std::vector<uint32_t>& texture, float u, float v) {
+  if (u < 0.0f) u = 0.0f;
+  if (u > 1.0f) u = 1.0f;
+  if (v < 0.0f) v = 0.0f;
+  if (v > 1.0f) v = 1.0f;
+  int tx = (int)(u * (TEX_W - 1));
+  int ty = (int)(v * (TEX_H - 1));
+  return texture[tx + ty * TEX_W];
+}
+
+static void drawTexturedTriangle(const ssr::Vector3& p0, const ssr::Vector3& p1, const ssr::Vector3& p2,
+                                 const ssr::Vector2& uv0, const ssr::Vector2& uv1, const ssr::Vector2& uv2,
+                                 const std::vector<uint32_t>& texture) {
+  ssr::Vector2 a{ p0.x, p0.y };
+  ssr::Vector2 b{ p1.x, p1.y };
+  ssr::Vector2 c{ p2.x, p2.y };
+
+  float minX = std::min(a.x, std::min(b.x, c.x));
+  float maxX = std::max(a.x, std::max(b.x, c.x));
+  float minY = std::min(a.y, std::min(b.y, c.y));
+  float maxY = std::max(a.y, std::max(b.y, c.y));
+
+  int x0 = std::max(0, (int)std::floor(minX));
+  int x1 = std::min(SCREEN_WIDTH - 1, (int)std::ceil(maxX));
+  int y0 = std::max(0, (int)std::floor(minY));
+  int y1 = std::min(SCREEN_HEIGHT - 1, (int)std::ceil(maxY));
+
+  float area = edgeFunction(a, b, c.x, c.y);
+  if (area == 0.0f) {
+    return;
+  }
+
+  for (int y = y0; y <= y1; ++y) {
+    for (int x = x0; x <= x1; ++x) {
+      float px = x + 0.5f;
+      float py = y + 0.5f;
+      float w0 = edgeFunction(b, c, px, py);
+      float w1 = edgeFunction(c, a, px, py);
+      float w2 = edgeFunction(a, b, px, py);
+
+      if ((area > 0.0f && (w0 < 0.0f || w1 < 0.0f || w2 < 0.0f)) ||
+          (area < 0.0f && (w0 > 0.0f || w1 > 0.0f || w2 > 0.0f))) {
+        continue;
+      }
+
+      float invArea = 1.0f / area;
+      w0 *= invArea;
+      w1 *= invArea;
+      w2 *= invArea;
+
+      float u = uv0.x * w0 + uv1.x * w1 + uv2.x * w2;
+      float v = uv0.y * w0 + uv1.y * w1 + uv2.y * w2;
+      uint32_t color = sampleTexture(texture, u, v);
+      if ((color >> 24) == 0) {
+        continue;
+      }
+      drawPoint(x, y, color);
+    }
   }
 }
 
@@ -198,19 +294,34 @@ SimpleMesh createTetrahedronMesh() {
     0, 3, 1,
     1, 3, 2
   };
+
+  float minX = mesh.vertices[0].x;
+  float maxX = mesh.vertices[0].x;
+  float minY = mesh.vertices[0].y;
+  float maxY = mesh.vertices[0].y;
+  for (const auto& v : mesh.vertices) {
+    minX = std::min(minX, v.x);
+    maxX = std::max(maxX, v.x);
+    minY = std::min(minY, v.y);
+    maxY = std::max(maxY, v.y);
+  }
+  const float invRangeX = (maxX - minX) != 0.0f ? 1.0f / (maxX - minX) : 0.0f;
+  const float invRangeY = (maxY - minY) != 0.0f ? 1.0f / (maxY - minY) : 0.0f;
+
+  mesh.uvs.reserve(mesh.vertices.size());
+  for (const auto& v : mesh.vertices) {
+    float u = (v.x - minX) * invRangeX;
+    float t = (v.y - minY) * invRangeY;
+    mesh.uvs.push_back({ u, t });
+  }
+
+  mesh.texture = createProceduralTexture();
   return mesh;
 }
 
 void initMesh() {
   g_mesh = createTetrahedronMesh();
   g_transformedVerts.resize(g_mesh.vertices.size());
-}
-
-void drawPoint(int x, int y, int color) {
-  if(x > SCREEN_WIDTH || x < 0) return;
-  if(y > SCREEN_HEIGHT || y < 0) return;
-
-  g_frameBuffer[x + y * SCREEN_WIDTH] = color;
 }
 
 // #1 Bresenham's line algorithm
@@ -279,7 +390,7 @@ void drawLineWithBresenhamAlgorithm(const ssr::Vector2& startPos, const ssr::Vec
 }
 
 // 주어진 세 개의 3D 정점으로 이루어진 삼각형을 그리기
-void renderMeshWireframe(double deltaMs) {
+void renderMeshTextured(double deltaMs) {
   if (g_mesh.vertices.empty() || g_mesh.indices.empty()) {
     g_logThisFrame = false;
     return;
@@ -287,6 +398,10 @@ void renderMeshWireframe(double deltaMs) {
 
   if (g_transformedVerts.size() != g_mesh.vertices.size()) {
     g_transformedVerts.resize(g_mesh.vertices.size());
+  }
+  if (g_mesh.uvs.size() != g_mesh.vertices.size()) {
+    g_logThisFrame = false;
+    return;
   }
 
   const float deltaSeconds = static_cast<float>(deltaMs) * 0.001f;
@@ -315,15 +430,18 @@ void renderMeshWireframe(double deltaMs) {
     }
   }
 
-  static const int whiteColor = 0xFFFFFFFF;
   for (size_t idx = 0; idx + 2 < g_mesh.indices.size(); idx += 3) {
-    const ssr::Vector3& v0 = g_transformedVerts[g_mesh.indices[idx]];
-    const ssr::Vector3& v1 = g_transformedVerts[g_mesh.indices[idx + 1]];
-    const ssr::Vector3& v2 = g_transformedVerts[g_mesh.indices[idx + 2]];
+    uint32_t i0 = g_mesh.indices[idx];
+    uint32_t i1 = g_mesh.indices[idx + 1];
+    uint32_t i2 = g_mesh.indices[idx + 2];
+    const ssr::Vector3& v0 = g_transformedVerts[i0];
+    const ssr::Vector3& v1 = g_transformedVerts[i1];
+    const ssr::Vector3& v2 = g_transformedVerts[i2];
+    const ssr::Vector2& uv0 = g_mesh.uvs[i0];
+    const ssr::Vector2& uv1 = g_mesh.uvs[i1];
+    const ssr::Vector2& uv2 = g_mesh.uvs[i2];
 
-    drawLineWithBresenhamAlgorithm({ v0.x, v0.y }, { v1.x, v1.y }, whiteColor);
-    drawLineWithBresenhamAlgorithm({ v1.x, v1.y }, { v2.x, v2.y }, whiteColor);
-    drawLineWithBresenhamAlgorithm({ v0.x, v0.y }, { v2.x, v2.y }, whiteColor);
+    drawTexturedTriangle(v0, v1, v2, uv0, uv1, uv2, g_mesh.texture);
   }
 
   g_logThisFrame = false;
@@ -411,7 +529,7 @@ int main(int argc, char **argv)
     // Update rendering objects
     memset((char*)g_frameBuffer, 0, sizeof(int) * SCREEN_WIDTH * SCREEN_HEIGHT);
 
-    renderMeshWireframe(g_program->delta());
+    renderMeshTextured(g_program->delta());
 
     SDL_UpdateTexture(g_screenTexture, nullptr, g_frameBuffer, SCREEN_WIDTH * 4);
     SDL_RenderCopy(renderer.native(), g_screenTexture, nullptr, nullptr);

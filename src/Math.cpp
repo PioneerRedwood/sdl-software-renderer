@@ -501,6 +501,10 @@ void setupViewportMatrix(Matrix4x4& out, float x, float y, float w, float h, flo
   out.m44 = 1.0f;
 }
 
+uint32_t lerpColor(uint32_t from, uint32_t to, float t) {
+  return (uint32_t)(from + t * (to - from));
 }
+
+} // namespace math
 
 }  // namespace ssr
