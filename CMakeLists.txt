@@ -55,6 +55,8 @@ if(CMAKE_SYSTEM_NAME STREQUAL "Windows")
         message(FATAL_ERROR "Unknown architecture detected: ${CMAKE_SYSTEM_PROCESSOR}")
     endif()
 
+    set(SDL_DLL_PATH "${SDL_LIB_PATH}/SDL2.dll")
+
     # Define imported libraries based on architecture
     add_library(lib-sdl2 STATIC IMPORTED)
     set_target_properties(lib-sdl2
@@ -71,6 +73,10 @@ if(CMAKE_SYSTEM_NAME STREQUAL "Windows")
         lib-sdl2
         lib-sdl2main
     )
+
+    add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            "${SDL_DLL_PATH}" $<TARGET_FILE_DIR:${PROJECT_NAME}>)
 
 elseif (CMAKE_SYSTEM_NAME STREQUAL "Darwin")
     # macOS specific settings (Xcode)
@@ -155,10 +161,4 @@ elseif (CMAKE_SYSTEM_NAME STREQUAL "Darwin")
     )
 endif()
 
-# SDL2 DLL 복사
-if(WIN32)
-    set(SDL2_DLL ${CMAKE_SOURCE_DIR}/lib/SDL2/Windows/lib/x86/SDL2.dll)
-    add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
-        COMMAND ${CMAKE_COMMAND} -E copy_if_different
-            "${SDL2_DLL}" $<TARGET_FILE_DIR:${PROJECT_NAME}>)
-endif()
+# SDL2 DLL 복사 (handled per-platform above)

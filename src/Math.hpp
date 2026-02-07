@@ -10,6 +10,7 @@
 #include <vector>
 #include <cstdlib>
 #include <cmath>
+#include <string>
 
 namespace ssr {
 
@@ -54,6 +55,8 @@ struct Vector3 {
   /// @brief 각 값을 정규화
   /// @return 정규화된 벡터 반환
   Vector3 normalize() const;
+
+  std::string toString() const;
 };
 
 namespace math {
@@ -123,9 +126,10 @@ struct Matrix4x4 {
   | m31 m32 m33 m34 |   | x.z y.z z.z w.z |
   | m41 m42 m43 m44 |   | x.w y.w z.w w.w |
   +-----------------+   +-----------------+
-  - (m11, m21, m31): X축, 왼쪽 벡터 (left)
+  - (m11, m21, m31): X축, 오른쪽 벡터 (right)
   - (m12, m22, m32): Y축, 위쪽 벡터 (up)
-  - (m14, m24, m34): Z축, 앞쪽 벡터 (forward)
+  - (m13, m23, m33): Z축, 앞쪽 벡터 (forward)
+  - (m41, m42, m43): 이동(translation)
   */
   Matrix4x4(Vector4 x, Vector4 y, Vector4 z, Vector4 w);
   Matrix4x4(const Vector4&, const Vector4&, const Vector4&, const Vector4&);
@@ -142,6 +146,7 @@ struct Matrix4x4 {
   // multiply
   Matrix4x4 operator*(const Matrix4x4& other) const;
   Vector4 operator*(const Vector4& other) const;
+  Vector3 operator*(const Vector3& other) const;
 
   static Matrix4x4 identity;
 
@@ -161,6 +166,12 @@ struct Matrix4x4 {
   /// @brief 주어진 각도로 행렬 회전
   void rotate(float x, float y, float z);
 
+  void rotateX(float deg);
+
+  void rotateY(float deg);
+
+  void rotateZ(float deg);
+
   void print() const;
 };
 
@@ -171,7 +182,7 @@ namespace math {
  * https://arienbv.org/blog/2017/07/30/breakdown-of-the-lookAt-function-in-OpenGL/
  * @return Matrix4x4 
  */
-void setupViewMatrix(Matrix4x4& out, const Vector3& eye, const Vector3& at, const Vector3& up);
+void setupCameraMatrix(Matrix4x4& out, const Vector3& eye, const Vector3& at, const Vector3& up);
 
 /**
  * @brief 원근 투영 프러스텀 매트릭스 반환
@@ -183,7 +194,10 @@ void setupPerspectiveProjectionMatrix(Matrix4x4& out, float fovY, float aspect, 
 // https://www.songho.ca/opengl/gl_transform.html
 // https://www.songho.ca/opengl/gl_viewport.html
 // near, far는 기본값 각각 0, 1 사용
-void setupViewportMatrix(Matrix4x4& out, float x, float y, float w, float h);
+void setupViewportMatrix(Matrix4x4& out, float x, float y, float w, float h, float near, float far);
+
+uint32_t lerpColor(uint32_t from, uint32_t to, float t);
+
 
 } // namespace math
 
