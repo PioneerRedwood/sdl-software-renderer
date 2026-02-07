@@ -196,6 +196,16 @@ void simulateInputForFrame(int frame) {
   }
 }
 
+// 3차원 백페이스 컬링 시 사용 가능
+// 두 벡터로 이루어진 면과 정점 사이의 관계를 계산
+// result == 0: 면에 정점이 존재하는 것
+// result > 0: 면보다 앞에 있는 것
+// result < 0: 면보다 뒤에 있는 것
+// 
+// "한 점이 삼각형의 각 변 기준으로 어느 쪽에 있는지" 판단하는 부호값
+// edge > 0: 점P는 선분 a->b 왼쪽
+// edge < 0: 점P는 선분 a->b 오른쪽
+// edge = 0: 점P는 선분 위
 static float edgeFunction(const ssr::Vector2& a, const ssr::Vector2& b, float x, float y) {
   return (x - a.x) * (b.y - a.y) - (y - a.y) * (b.x - a.x);
 }
@@ -210,6 +220,9 @@ static uint32_t sampleTexture(const std::vector<uint32_t>& texture, float u, flo
   return texture[tx + ty * TEX_W];
 }
 
+// 바리센트릭 가중치를 사용해서 점 p0~p2를 각 uv0~uv2에 맞는 색상 값을 구해서 점 그리기
+// 바리센트릭 가중치를 구하기 위해서 우선 세가지 정점으로 구성된 삼각형의
+// 내부와 그 정점마다 삼각형으로부터 얼마나 가까운지 각 uv에 어떤 가중치를 줄지 계산
 static void drawTexturedTriangle(const ssr::Vector3& p0, const ssr::Vector3& p1, const ssr::Vector3& p2,
                                  const ssr::Vector2& uv0, const ssr::Vector2& uv1, const ssr::Vector2& uv2,
                                  const std::vector<uint32_t>& texture) {
@@ -227,19 +240,25 @@ static void drawTexturedTriangle(const ssr::Vector3& p0, const ssr::Vector3& p1,
   int y0 = std::max(0, (int)std::floor(minY));
   int y1 = std::min(SCREEN_HEIGHT - 1, (int)std::ceil(maxY));
 
+  // 만약 이 삼각형의 영역이 0이라면 조기 리턴
   float area = edgeFunction(a, b, c.x, c.y);
   if (area == 0.0f) {
     return;
   }
 
+  // 삼각형을 그려야 하는 범위 (사각영역)
   for (int y = y0; y <= y1; ++y) {
     for (int x = x0; x <= x1; ++x) {
       float px = x + 0.5f;
       float py = y + 0.5f;
+
+      // 각 정점이 이루는 선분으로부터 해당 점에 대한 가중치값 계산
       float w0 = edgeFunction(b, c, px, py);
       float w1 = edgeFunction(c, a, px, py);
       float w2 = edgeFunction(a, b, px, py);
 
+      // 삼각형의 모든 변에 대해 같은 방향으로 있어야 
+      // 내부로 판정됨
       if ((area > 0.0f && (w0 < 0.0f || w1 < 0.0f || w2 < 0.0f)) ||
           (area < 0.0f && (w0 > 0.0f || w1 > 0.0f || w2 > 0.0f))) {
         continue;
@@ -253,6 +272,8 @@ static void drawTexturedTriangle(const ssr::Vector3& p0, const ssr::Vector3& p1,
       float u = uv0.x * w0 + uv1.x * w1 + uv2.x * w2;
       float v = uv0.y * w0 + uv1.y * w1 + uv2.y * w2;
       uint32_t color = sampleTexture(texture, u, v);
+      
+      // 알파값이 만약 0이라면 그리지 않고 건너뜀
       if ((color >> 24) == 0) {
         continue;
       }
