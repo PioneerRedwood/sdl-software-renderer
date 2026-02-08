@@ -5,18 +5,18 @@
 ## 순서 (2026-02-04)
 1. Texture Mapping
 2. Model Rendering
-3. ASCII Rendering
-4. Perspective Correction
-5. Billnear Texture
-6. Flat-Shading
-7. Gouraude Shading
-8. Half Lambert Shading
-9. Phong Shading
-10. Phong and BlinnPhong Shading
-11. Water Shading and Fire Shading
+3. Perspective Correction
+4. Bilinear Texture
+5. Flat-Shading
+6. Gouraude Shading
+7. Half Lambert Shading
+8. Phong Shading
+9. Phong and BlinnPhong Shading
+10. Water Shading and Fire Shading
 
 ## 진행 사항
 - 2026-02-04: 로드맵 문서 분리. 초기 항목 정리.
+- 2026-02-08: 로드맵 업데이트. 
 
 ## 이슈 및 미해결
 - 2026-02-04: 없음.

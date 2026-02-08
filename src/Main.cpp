@@ -38,6 +38,8 @@ SDL_Texture* g_screenTexture;
 ssr::Camera g_camera;
 unsigned int* g_frameBuffer = nullptr;
 std::vector<float> g_depthBuffer;
+std::vector<float> g_invWs;
+std::vector<float> g_clipZs;
 bool g_logThisFrame = false;
 
 bool isSimTestEnabled() {
@@ -227,6 +229,8 @@ static uint32_t sampleTexture(const std::vector<uint32_t>& texture, float u, flo
 // 내부와 그 정점마다 삼각형으로부터 얼마나 가까운지 각 uv에 어떤 가중치를 줄지 계산
 static void drawTexturedTriangle(const ssr::Vector3& p0, const ssr::Vector3& p1, const ssr::Vector3& p2,
                                  const ssr::Vector2& uv0, const ssr::Vector2& uv1, const ssr::Vector2& uv2,
+                                 float invW0, float invW1, float invW2,
+                                 float clipZ0, float clipZ1, float clipZ2,
                                  const std::vector<uint32_t>& texture,
                                  std::vector<float>& depthBuffer) {
   ssr::Vector2 a{ p0.x, p0.y };
@@ -272,9 +276,15 @@ static void drawTexturedTriangle(const ssr::Vector3& p0, const ssr::Vector3& p1,
       w1 *= invArea;
       w2 *= invArea;
 
-      float u = uv0.x * w0 + uv1.x * w1 + uv2.x * w2;
-      float v = uv0.y * w0 + uv1.y * w1 + uv2.y * w2;
-      float z = p0.z * w0 + p1.z * w1 + p2.z * w2;
+      float denom = (w0 * invW0) + (w1 * invW1) + (w2 * invW2);
+      if (denom == 0.0f) {
+        continue;
+      }
+      float invDenom = 1.0f / denom;
+
+      float u = (uv0.x * invW0 * w0 + uv1.x * invW1 * w1 + uv2.x * invW2 * w2) * invDenom;
+      float v = (uv0.y * invW0 * w0 + uv1.y * invW1 * w1 + uv2.y * invW2 * w2) * invDenom;
+      float z = (clipZ0 * invW0 * w0 + clipZ1 * invW1 * w1 + clipZ2 * invW2 * w2) * invDenom;
 
       // 만약 z값이 깊이 버퍼에 있는 값보다 큰 경우 보이지 않음
       int depthIndex = x + y * SCREEN_WIDTH;
@@ -502,6 +512,12 @@ void renderMeshTextured(double deltaMs) {
   if (g_transformedVerts.size() != g_mesh.vertices.size()) {
     g_transformedVerts.resize(g_mesh.vertices.size());
   }
+  if (g_invWs.size() != g_mesh.vertices.size()) {
+    g_invWs.resize(g_mesh.vertices.size());
+  }
+  if (g_clipZs.size() != g_mesh.vertices.size()) {
+    g_clipZs.resize(g_mesh.vertices.size());
+  }
   if (g_mesh.uvs.size() != g_mesh.vertices.size()) {
     g_logThisFrame = false;
     return;
@@ -521,12 +537,21 @@ void renderMeshTextured(double deltaMs) {
   for (size_t i = 0; i < g_mesh.vertices.size(); ++i) {
     ssr::Vector4 v = { g_mesh.vertices[i].x, g_mesh.vertices[i].y, g_mesh.vertices[i].z, 1.0f };
     v = modelMat * v;
-    v = (g_projectionMat * (g_cameraMat * v));
-    v.perspectiveDivide();
-    v = g_viewportMat * v;
-    g_transformedVerts[i].x = v.x;
-    g_transformedVerts[i].y = v.y;
-    g_transformedVerts[i].z = v.z;
+
+    // 클립 공간을 적용하는 행렬을 가져와서 
+    // 텍스처 적용 시 "원근 보정" 적용할 값을 가져옴
+    ssr::Vector4 clip = (g_projectionMat * (g_cameraMat * v));
+
+    float invW = (clip.w != 0.0f) ? (1.0f / clip.w) : 0.0f;
+    g_invWs[i] = invW;
+    g_clipZs[i] = clip.z;
+
+    ssr::Vector4 ndc = { clip.x * invW, clip.y * invW, clip.z * invW, 1.0f };
+    ndc = g_viewportMat * ndc;
+
+    g_transformedVerts[i].x = ndc.x;
+    g_transformedVerts[i].y = ndc.y;
+    g_transformedVerts[i].z = ndc.z;
 
     if (g_logThisFrame && i < 4) {
       printf("screen v%zu => %s\n", i, g_transformedVerts[i].toString().c_str());
@@ -543,8 +568,17 @@ void renderMeshTextured(double deltaMs) {
     const ssr::Vector2& uv0 = g_mesh.uvs[i0];
     const ssr::Vector2& uv1 = g_mesh.uvs[i1];
     const ssr::Vector2& uv2 = g_mesh.uvs[i2];
+    float invW0 = g_invWs[i0];
+    float invW1 = g_invWs[i1];
+    float invW2 = g_invWs[i2];
+    float clipZ0 = g_clipZs[i0];
+    float clipZ1 = g_clipZs[i1];
+    float clipZ2 = g_clipZs[i2];
 
-    drawTexturedTriangle(v0, v1, v2, uv0, uv1, uv2, g_mesh.texture, g_depthBuffer);
+    drawTexturedTriangle(v0, v1, v2, uv0, uv1, uv2,
+                         invW0, invW1, invW2,
+                         clipZ0, clipZ1, clipZ2,
+                         g_mesh.texture, g_depthBuffer);
   }
 
   g_logThisFrame = false;
