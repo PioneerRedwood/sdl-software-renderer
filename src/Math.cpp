@@ -204,16 +204,7 @@ Matrix4x4 Matrix4x4::operator*(float scalar) const {
   };
 }
 
-/*
-  행렬 및 벡터 곱
-  +-----------------+   +---+
-  | m11 m12 m13 m14 |   | x |
-  | m21 m22 m23 m24 | X | y |
-  | m31 m32 m33 m34 |   | z |
-  | m41 m42 m43 m44 |   | w |
-  +-----------------+   +---+
-  ...
-*/
+// Row-vector multiply: result = v * M (translation in m41..m43)
 Vector4 Matrix4x4::operator*(const Vector4& other) const {
   return {
     other.x * this->m11 + other.y * this->m21 + other.z * this->m31 + other.w * this->m41,
@@ -296,34 +287,12 @@ Matrix4x4 Matrix4x4::operator*(const Matrix4x4& other) const {
   };
 }
 
-/*
-  이동 
-  +-----------------+
-  | x.x y.x z.x w.x |
-  | x.y y.y z.y w.y |
-  | x.z y.z z.z w.z |
-  | x.w y.w z.w w.w |
-  +-----------------+
-  m41(w.x) + x, m42(w.y) + y, m43(w.z) + z
-*/
 void Matrix4x4::translate(float x, float y, float z) {
   this->m41 += x;
   this->m42 += y;
   this->m43 += z;
 }
 
-/*
-  변환
-  +-----------------+   +---+
-  | m11 m12 m13 m14 |   | x |
-  | m21 m22 m23 m24 | X | y |
-  | m31 m32 m33 m34 |   | z |
-  | m41 m42 m43 m44 |   | 1 |
-  +-----------------+   +---+
-  = (m11 * x + m21 * y + m31 * z + m41 * 1, ... )
-  = (m12 * x + m22 * y + m32 * z + m42 * 1, ... )
-  = (m13 * x + m23 * y + m33 * z + m43 * 1, ... )
-*/
 Vector3 Matrix4x4::transform(const Vector3& v) {
   return {
     v.x * this->m11 + v.y * this->m21 + v.z * this->m31 + this->m41,
@@ -332,19 +301,6 @@ Vector3 Matrix4x4::transform(const Vector3& v) {
   };
 }
 
-/*
-  변환
-  +-----------------+   +---+
-  | m11 m12 m13 m14 |   | x |
-  | m21 m22 m23 m24 | X | y | 
-  | m31 m32 m33 m34 |   | z |
-  | m41 m42 m43 m44 |   | 1 |
-  +-----------------+   +---+
-  = (m11 * x + m21 * y + m31 * z + m41 * 1, ... )
-  = (m12 * x + m22 * y + m32 * z + m42 * 1, ... )
-  = (m13 * x + m23 * y + m33 * z + m43 * 1, ... )
-  = (m14 * x + m24 * y + m34 * z + m44 * 1, ... )
-*/
 Vector4 Matrix4x4::transform4(const Vector3& v) {
   return {
     v.x * this->m11 + v.y * this->m21 + v.z * this->m31 + this->m41,
@@ -469,6 +425,7 @@ void setupCameraMatrix(Matrix4x4& model, const Vector3& eye, const Vector3& at, 
 
 void setupPerspectiveProjectionMatrix(Matrix4x4& out, float fovY, float aspect, float near, float far) {
   // 원근 투영 (Left-handed)
+  // https://www.songho.ca/opengl/gl_projectionmatrix.html
 
   const float DEG2RAD = acos(-1.0f) / 180;
 
@@ -491,6 +448,9 @@ void setupViewportMatrix(Matrix4x4& out, float x, float y, float w, float h, flo
   |  0   0  m43 m44 | |  0   0    0      1   |
   +-----------------+ +----------------------+
   */
+  // https://www.songho.ca/opengl/gl_transform.html
+  // https://www.songho.ca/opengl/gl_viewport.html
+
   out.m11 = w * 0.5f;
   // 화면 좌표계는 Y가 아래로 증가하므로 NDC Y를 뒤집는다.
   out.m22 = -h * 0.5f;

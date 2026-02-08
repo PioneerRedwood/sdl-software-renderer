@@ -98,14 +98,12 @@ struct Vector4 {
 };
 
 /*
-   x   y   z   w -> axis
-   v   v   v   v
-+-----------------+ +-----------------+
-| m11 m12 m13 m14 | | x.x y.x z.x w.x |
-| m21 m22 m23 m24 | | x.y y.y z.y w.y |
-| m31 m32 m33 m34 | | x.z y.z z.z w.z |
-| m41 m42 m43 m44 | | x.w y.w z.w w.w |
-+-----------------+ +-----------------+
+  Row-vector convention (v * M):
+  [ x y z w ] * M =
+  [ x*m11 + y*m21 + z*m31 + w*m41,
+    x*m12 + y*m22 + z*m32 + w*m42,
+    x*m13 + y*m23 + z*m33 + w*m43,
+    x*m14 + y*m24 + z*m34 + w*m44 ]
 */
 struct Matrix4x4 {
   float m11, m12, m13, m14;
@@ -118,19 +116,8 @@ struct Matrix4x4 {
             float, float, float, float,
             float, float, float, float,
             float, float, float, float);
-  /*
-  OpenGL 오른손 좌표계
-  +-----------------+   +-----------------+
-  | m11 m12 m13 m14 |   | x.x y.x z.x w.x |
-  | m21 m22 m23 m24 |   | x.y y.y z.y w.y |
-  | m31 m32 m33 m34 |   | x.z y.z z.z w.z |
-  | m41 m42 m43 m44 |   | x.w y.w z.w w.w |
-  +-----------------+   +-----------------+
-  - (m11, m21, m31): X축, 오른쪽 벡터 (right)
-  - (m12, m22, m32): Y축, 위쪽 벡터 (up)
-  - (m13, m23, m33): Z축, 앞쪽 벡터 (forward)
-  - (m41, m42, m43): 이동(translation)
-  */
+
+  // Note: Engine uses left-handed coordinates; columns store basis vectors and last row is translation.
   Matrix4x4(Vector4 x, Vector4 y, Vector4 z, Vector4 w);
   Matrix4x4(const Vector4&, const Vector4&, const Vector4&, const Vector4&);
 
@@ -179,21 +166,18 @@ namespace math {
 
 /**
  * @brief 현재 카메라가 바라보고 있는 방향의 벡터를 반환
- * https://arienbv.org/blog/2017/07/30/breakdown-of-the-lookAt-function-in-OpenGL/
- * @return Matrix4x4 
  */
 void setupCameraMatrix(Matrix4x4& out, const Vector3& eye, const Vector3& at, const Vector3& up);
 
 /**
  * @brief 원근 투영 프러스텀 매트릭스 반환
- * https://www.songho.ca/opengl/gl_projectionmatrix.html
- * @param camera 
  */
 void setupPerspectiveProjectionMatrix(Matrix4x4& out, float fovY, float aspect, float near, float far);
 
-// https://www.songho.ca/opengl/gl_transform.html
-// https://www.songho.ca/opengl/gl_viewport.html
-// near, far는 기본값 각각 0, 1 사용
+/**
+ * @brief 뷰포트 행렬 구성
+ * near, far는 기본값 각각 0, 1 사용
+ */
 void setupViewportMatrix(Matrix4x4& out, float x, float y, float w, float h, float near, float far);
 
 uint32_t lerpColor(uint32_t from, uint32_t to, float t);

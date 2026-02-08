@@ -1,4 +1,4 @@
-# Memo
+﻿# Memo
 - Rasterization: 3차원 공간에 존재하는 정점을 어떤 과정을 거쳐서 2차원 화면에 그리는 것
 - OpenGL 기준 좌표계를 사용하여 SDL만을 갖고 렌더링하는 것이 목표
 - 해당 메모에서는 그 과정에 찾아본 것을 정리
@@ -138,3 +138,11 @@ Mat(eye) = Mat(view) X Mat(model)
 
 ## 로드맵
 - [로드맵 문서](Roadmap.md)
+
+## 좌표계/행렬 규약 점검 (2026-02-08)
+- Math.cpp의 setupCameraMatrix/setupPerspectiveProjectionMatrix에서 Left-handed 좌표계를 명시함. +X right, +Y up, +Z forward(카메라가 보는 방향이 +Z). 
+    - DirectX(D3D) 스타일과 유사하며 OpenGL(RH)과 다름.
+- Math.hpp 주석에는 OpenGL 오른손 좌표계/열벡터 그림이 있으나, 실제 연산은 row-vector 규약에 가깝다. 
+    - Matrix4x4::operator*(Vector4) 구현이 v * M 형태로 계산되고 translation이 m41,m42,m43에 들어가는 구조.
+- 코드에서는 M * v 형태로 호출하지만 operator 구현상 실제 의미는 v * M에 대응하므로, 변환 합성 순서는 v * Model * View * Projection (row-vector 기준)으로 해석하는 편이 혼동이 적다.
+- viewport에서 Y축을 뒤집어(screen Y down) NDC와 화면 좌표 차이를 보정한다.

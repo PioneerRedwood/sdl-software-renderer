@@ -22,7 +22,7 @@
 
 #define Z_NEAR 0.1f
 #define Z_FAR  10.0f
-#define SCREEN_WIDTH 360
+#define SCREEN_WIDTH 720
 #define SCREEN_HEIGHT 640
 
 #pragma mark Global Variables
@@ -37,6 +37,7 @@ SDL_Texture* g_screenTexture;
 
 ssr::Camera g_camera;
 unsigned int* g_frameBuffer = nullptr;
+std::vector<float> g_depthBuffer;
 bool g_logThisFrame = false;
 
 bool isSimTestEnabled() {
@@ -64,6 +65,7 @@ void initMatrices(float width, float height) {
 // 3. 차원 감소 -> 3차원에서 2차원으로 동차좌표계 (NDC 노말 디바이스 좌표계로 변환)
 // 4. 뷰포트 적용
 void transformToScreen(ssr::Vector4& point) {
+  // Note: Matrix * Vector operator implements row-vector math (v * M).
   // View * Projection
   point = (g_projectionMat * (g_cameraMat * point));
 
@@ -225,7 +227,8 @@ static uint32_t sampleTexture(const std::vector<uint32_t>& texture, float u, flo
 // 내부와 그 정점마다 삼각형으로부터 얼마나 가까운지 각 uv에 어떤 가중치를 줄지 계산
 static void drawTexturedTriangle(const ssr::Vector3& p0, const ssr::Vector3& p1, const ssr::Vector3& p2,
                                  const ssr::Vector2& uv0, const ssr::Vector2& uv1, const ssr::Vector2& uv2,
-                                 const std::vector<uint32_t>& texture) {
+                                 const std::vector<uint32_t>& texture,
+                                 std::vector<float>& depthBuffer) {
   ssr::Vector2 a{ p0.x, p0.y };
   ssr::Vector2 b{ p1.x, p1.y };
   ssr::Vector2 c{ p2.x, p2.y };
@@ -271,12 +274,22 @@ static void drawTexturedTriangle(const ssr::Vector3& p0, const ssr::Vector3& p1,
 
       float u = uv0.x * w0 + uv1.x * w1 + uv2.x * w2;
       float v = uv0.y * w0 + uv1.y * w1 + uv2.y * w2;
+      float z = p0.z * w0 + p1.z * w1 + p2.z * w2;
+
+      // 만약 z값이 깊이 버퍼에 있는 값보다 큰 경우 보이지 않음
+      int depthIndex = x + y * SCREEN_WIDTH;
+      if (z >= depthBuffer[depthIndex]) {
+        continue;
+      }
       uint32_t color = sampleTexture(texture, u, v);
       
       // 알파값이 만약 0이라면 그리지 않고 건너뜀
       if ((color >> 24) == 0) {
         continue;
       }
+
+      // 깊이 버퍼 값 업데이트
+      depthBuffer[depthIndex] = z;
       drawPoint(x, y, color);
     }
   }
@@ -340,8 +353,77 @@ SimpleMesh createTetrahedronMesh() {
   return mesh;
 }
 
+SimpleMesh createCubeMesh() {
+	SimpleMesh mesh;
+  mesh.vertices = {
+    // Front face (z = -1)
+    { -1.0f, -1.0f, -1.0f },
+    { -1.0f,  1.0f, -1.0f },
+    {  1.0f,  1.0f, -1.0f },
+		{  1.0f, -1.0f, -1.0f },
+
+    // Back face (z = +1)
+    {  1.0f, -1.0f,  1.0f },
+    {  1.0f,  1.0f,  1.0f },
+    { -1.0f,  1.0f,  1.0f },
+		{ -1.0f, -1.0f,  1.0f },
+
+    // Right face (x = +1)
+    {  1.0f, -1.0f, -1.0f },
+    {  1.0f,  1.0f, -1.0f },
+    {  1.0f,  1.0f,  1.0f },
+		{  1.0f, -1.0f,  1.0f },
+
+    // Left face (x = -1)
+    { -1.0f, -1.0f,  1.0f },
+    { -1.0f,  1.0f,  1.0f },
+    { -1.0f,  1.0f, -1.0f },
+		{ -1.0f, -1.0f, -1.0f },
+
+    // Top face (y = +1)
+    { -1.0f,  1.0f, -1.0f },
+    { -1.0f,  1.0f,  1.0f },
+    {  1.0f,  1.0f,  1.0f },
+		{  1.0f,  1.0f, -1.0f },
+
+    // Bottom face (y = -1)
+    { -1.0f, -1.0f,  1.0f },
+    { -1.0f, -1.0f, -1.0f },
+    {  1.0f, -1.0f, -1.0f },
+		{  1.0f, -1.0f,  1.0f },
+	};
+
+  mesh.indices = {
+		0, 1, 2, 0, 2, 3,       // Front
+		4, 5, 6, 4, 6, 7,       // Back
+		8, 9,10, 8,10,11,       // Right
+		12,13,14, 12,14,15,     // Left
+		16,17,18, 16,18,19,     // Top
+		20,21,22, 20,22,23,     // Bottom
+	};
+
+  mesh.uvs = {
+    // Front
+    { 0.0f, 0.0f }, { 0.0f, 1.0f }, { 1.0f, 1.0f }, { 1.0f, 0.0f },
+    // Back
+    { 0.0f, 0.0f }, { 0.0f, 1.0f }, { 1.0f, 1.0f }, { 1.0f, 0.0f },
+    // Right
+    { 0.0f, 0.0f }, { 0.0f, 1.0f }, { 1.0f, 1.0f }, { 1.0f, 0.0f },
+    // Left
+    { 0.0f, 0.0f }, { 0.0f, 1.0f }, { 1.0f, 1.0f }, { 1.0f, 0.0f },
+    // Top
+    { 0.0f, 0.0f }, { 0.0f, 1.0f }, { 1.0f, 1.0f }, { 1.0f, 0.0f },
+    // Bottom
+    { 0.0f, 0.0f }, { 0.0f, 1.0f }, { 1.0f, 1.0f }, { 1.0f, 0.0f },
+  };
+
+  mesh.texture = createProceduralTexture();
+  return mesh;
+}
+
 void initMesh() {
-  g_mesh = createTetrahedronMesh();
+  //g_mesh = createTetrahedronMesh();
+  g_mesh = createCubeMesh();
   g_transformedVerts.resize(g_mesh.vertices.size());
 }
 
@@ -462,7 +544,7 @@ void renderMeshTextured(double deltaMs) {
     const ssr::Vector2& uv1 = g_mesh.uvs[i1];
     const ssr::Vector2& uv2 = g_mesh.uvs[i2];
 
-    drawTexturedTriangle(v0, v1, v2, uv0, uv1, uv2, g_mesh.texture);
+    drawTexturedTriangle(v0, v1, v2, uv0, uv1, uv2, g_mesh.texture, g_depthBuffer);
   }
 
   g_logThisFrame = false;
@@ -549,6 +631,12 @@ int main(int argc, char **argv)
     
     // Update rendering objects
     memset((char*)g_frameBuffer, 0, sizeof(int) * SCREEN_WIDTH * SCREEN_HEIGHT);
+    const size_t depthSize = SCREEN_WIDTH * SCREEN_HEIGHT;
+    if (g_depthBuffer.size() != depthSize) {
+      g_depthBuffer.assign(depthSize, 1.0f);
+    } else {
+      std::fill(g_depthBuffer.begin(), g_depthBuffer.end(), 1.0f);
+    }
 
     renderMeshTextured(g_program->delta());
 
